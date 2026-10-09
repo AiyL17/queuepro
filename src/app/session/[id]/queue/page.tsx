@@ -4,6 +4,16 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { SKILL_LEVELS, SkillLevel, QueueEntry, Court, GameMode } from "@/lib/types";
+
+/** Fisher-Yates shuffle — returns a new shuffled array. */
+function shuffled<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { RefreshCw, UserPlus, Volume2, Users, User, X } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
@@ -27,7 +37,8 @@ export default function QueuePage() {
   const [loading, setLoading]   = useState(true);
   const [calling, setCalling]   = useState<string | null>(null);
 
-  const playersPerMatch = gameMode === "singles" ? 2 : 4;
+  const playersPerMatch    = gameMode === "singles" ? 2 : 4;
+  const minPlayersToStart  = gameMode === "singles" ? 2 : 3; // doubles can start 2v1
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -164,9 +175,13 @@ export default function QueuePage() {
             if (skillQueue.length === 0 && skillCourts.length === 0) return null;
 
             const availableCourts = skillCourts.filter((c) => c.status === "available");
-            const canCall         = availableCourts.length > 0 && skillQueue.length >= playersPerMatch;
+            const canCall         = availableCourts.length > 0 && skillQueue.length >= minPlayersToStart;
             const color           = SKILL_COLORS[s.value];
-            const nextPlayers     = skillQueue.slice(0, playersPerMatch);
+            // Shuffle the waitlist so every rotation produces different pairings,
+            // then take the first N (up to playersPerMatch, min minPlayersToStart).
+            const shuffledQueue   = shuffled(skillQueue);
+            const nextCount       = Math.min(shuffledQueue.length, playersPerMatch);
+            const nextPlayers     = shuffledQueue.slice(0, nextCount);
 
             return (
               <div
@@ -208,7 +223,7 @@ export default function QueuePage() {
                   ) : (
                     <div className="space-y-1.5 mb-3">
                       {skillQueue.map((entry, idx) => {
-                        const isNext = idx < playersPerMatch && canCall;
+                        const isNext = canCall && nextPlayers.some((n) => n.id === entry.id);
                         return (
                           <div
                             key={entry.id}
@@ -261,14 +276,14 @@ export default function QueuePage() {
                       <Volume2 size={14} />
                       {calling === availableCourts[0].id
                         ? "Calling..."
-                        : `Send next ${playersPerMatch} to ${availableCourts[0].name}`}
+                        : `Send next ${nextCount} to ${availableCourts[0].name}`}
                     </button>
                   )}
 
                   {/* Not enough players yet */}
-                  {availableCourts.length > 0 && skillQueue.length > 0 && skillQueue.length < playersPerMatch && (
+                  {availableCourts.length > 0 && skillQueue.length > 0 && skillQueue.length < minPlayersToStart && (
                     <p className="text-xs text-center py-2" style={{ color: "var(--text-faint)" }}>
-                      Need {playersPerMatch - skillQueue.length} more player{playersPerMatch - skillQueue.length !== 1 ? "s" : ""} to start a match
+                      Need {minPlayersToStart - skillQueue.length} more player{minPlayersToStart - skillQueue.length !== 1 ? "s" : ""} to start a match
                     </p>
                   )}
                 </div>

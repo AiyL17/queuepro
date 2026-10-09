@@ -419,7 +419,7 @@ export default function SessionPage() {
           {/* Waitlist — full width on mobile, fixed sidebar on lg+ */}
           <div className="w-full lg:w-72 lg:flex-shrink-0">
             <h2 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-faint)" }}>
-              Waitlist · {waitlist.length}
+              Players · {waitlist.length}
             </h2>
 
             {waitlist.length === 0 ? (
@@ -459,7 +459,7 @@ export default function SessionPage() {
                       <button
                         type="button"
                         onClick={() => removeFromWaitlist(entry.id)}
-                        title={`Remove ${entry.player?.name ?? "player"} from waitlist`}
+                        title={`Remove ${entry.player?.name ?? "player"} from queue`}
                         className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-all opacity-70 hover:opacity-100 hover:scale-110 cursor-pointer"
                         style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}
                       >

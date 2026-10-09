@@ -5,8 +5,13 @@
  *  1. Always re-insert finished players as "waiting" at the back of the queue
  *     (with doubles pairing rotation). They go AFTER any existing waiters.
  *  2. Re-fetch the full live waitlist (which now includes the re-queued players).
- *  3. If enough waiting players exist → promote the first N to the freed court.
+ *  3. If enough waiting players exist → shuffle the candidates, then promote N
+ *     to the freed court so team composition varies every rotation.
  *  4. Otherwise → court stays "available"; the operator or a future submit handles it.
+ *
+ * Recovery: if finished players are still in "done" status at the start of this
+ * function (e.g. from a previous partial failure), they are recovered and
+ * re-inserted as "waiting" before the waitlist check.
  *
  * This ensures finished players always rotate back into the queue and are never
  * permanently stuck in "done" status.
@@ -17,6 +22,17 @@ import { Court, GameMode, SkillLevel } from "@/lib/types";
 
 interface FinishedPlayer {
   id: string;
+}
+
+/**
+ * Fisher-Yates in-place shuffle. Returns the same array (mutated).
+ */
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 /**
@@ -41,6 +57,17 @@ export async function requeueAfterMatch(
   const supabase = createClient();
   const needed = gameMode === "singles" ? 2 : 4;
 
+  // ── Recovery pass ─────────────────────────────────────────────────────────
+  //
+  // If any finished players are still stuck in "done" status (e.g. from a
+  // previous partial failure between the done-write and this call), detect and
+  // recover them by re-marking them as candidates for re-insertion below.
+  //
+  // We only recover players that are still "done" — players already re-inserted
+  // as "waiting" from a prior partial run are handled by the de-dup guard below.
+
+  const finishedIds = finishedPlayers.map((p) => p.id);
+
   // ── Step A: Compute rotated player order ──────────────────────────────────
   //
   // For doubles (4 players) rotate the pairing so the same two people aren't
@@ -52,6 +79,7 @@ export async function requeueAfterMatch(
   //   [P0,P3] vs [P1,P2]
   //
   // We pick randomly from the 2 remaining pairings (excluding the one just played).
+  // For 3-player doubles or singles: re-insert as-is (shuffle happens at Step D).
 
   let rotatedPlayerIds: string[];
 
@@ -80,7 +108,8 @@ export async function requeueAfterMatch(
     const chosen = available[Math.floor(Math.random() * available.length)];
     rotatedPlayerIds = [...chosen[0], ...chosen[1]];
   } else {
-    // Singles (or edge-case 2v1 doubles) — re-insert as-is
+    // Singles, or 3-player doubles (edge case) — re-insert as-is.
+    // Random team assignment will happen at Step D via the shuffle.
     rotatedPlayerIds = finishedPlayers.map((p) => p.id);
   }
 
@@ -92,13 +121,15 @@ export async function requeueAfterMatch(
   // courts finish within the same millisecond.
   //
   // De-duplication guard: skip any player who already has a "waiting" entry
-  // (protects against partial-failure retries creating double entries).
+  // at this skill level (protects against partial-failure retries creating
+  // double entries, and correctly scopes to skill_level for multi-court sessions).
 
   const { data: existingWaiting, error: existingErr } = await supabase
     .from("queue_entries")
     .select("player_id")
     .eq("session_id", sessionId)
     .eq("status", "waiting")
+    .eq("skill_level", court.assigned_skill_level)  // scoped to this court's level
     .in("player_id", rotatedPlayerIds);
 
   if (existingErr) {
@@ -144,9 +175,21 @@ export async function requeueAfterMatch(
   const freshWaitlist = freshWaitlistData ?? [];
 
   // ── Step D: Promote to court if enough players are now waiting ────────────
+  //
+  // Shuffle the candidates randomly before slicing so team composition varies
+  // every rotation rather than always being positional (FIFO order).
 
   if (freshWaitlist.length >= needed) {
-    const toPromote = freshWaitlist.slice(0, needed);
+    // Separate the re-queued (just-finished) players from established waiters.
+    // Shuffle each group independently so existing waiters still tend to go
+    // before re-queued players, but within each group the order is random.
+    const requeued  = freshWaitlist.filter((w) => finishedIds.includes(w.player_id));
+    const others    = freshWaitlist.filter((w) => !finishedIds.includes(w.player_id));
+
+    // Shuffle both groups, then promote from the combined pool.
+    // Others (established waiters) go first; re-queued go after.
+    const candidates = [...shuffle(others), ...shuffle(requeued)];
+    const toPromote  = candidates.slice(0, needed);
 
     const { error: courtErr } = await supabase
       .from("courts")
