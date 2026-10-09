@@ -6,9 +6,9 @@ export const metadata: Metadata = {
   title: "QueuePro - Pickleball Queue System",
   description: "Manage pickleball court queues, scores, and leaderboards",
   icons: {
-    icon: "/icon.jpg",
-    shortcut: "/icon.jpg",
-    apple: "/icon.jpg",
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
   },
 };
 
