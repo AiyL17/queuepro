@@ -64,8 +64,10 @@ export default function DisplayPage() {
     <main className="min-h-screen p-4 sm:p-6" style={{ background: "var(--bg-page)" }}>
       {/* Header bar */}
       <div
-        className="flex items-center justify-between gap-3 mb-6 pb-4"
-        style={{ borderBottom: "1px solid var(--border)" }}
+        className="sticky top-0 z-10 flex items-center justify-between gap-3 mb-6 pb-4 px-4 sm:px-6 -mx-4 sm:-mx-6"
+        style={{ borderBottom: "1px solid var(--border)",
+          backdropFilter: "blur(12px)",
+          background: "var(--bg-page)", }}
       >
         <div className="flex items-center gap-3 min-w-0">
           <div
@@ -99,7 +101,7 @@ export default function DisplayPage() {
 
       {/* Courts row — auto-responsive grid */}
       {courts.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+        <div className="pt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
           {courts.map((court) => (
             <div
               key={court.id}
@@ -124,7 +126,7 @@ export default function DisplayPage() {
               </p>
               <div className="flex items-center justify-center gap-1 mt-2 relative">
                 <div
-                  className="w-1.5 h-1.5 rounded-full"
+                  className={`w-1.5 h-1.5 rounded-full${court.status === "occupied" ? " pulse-ring" : ""}`}
                   style={{
                     background: court.status === "available"
                       ? "var(--court-available-text)"
@@ -194,7 +196,7 @@ export default function DisplayPage() {
                   {skillQueue.length > 0 && (
                     <div>
                       <p
-                        className="text-xs font-medium mb-2 uppercase tracking-widest"
+                        className="text-xs font-bold mb-2 uppercase tracking-widest"
                         style={{ color: "var(--text-faint)" }}
                       >
                         Queue
@@ -226,7 +228,7 @@ export default function DisplayPage() {
                   {topScores.length > 0 && (
                     <div>
                       <p
-                        className="text-xs font-medium mb-2 uppercase tracking-widest"
+                        className="text-xs font-bold mb-2 uppercase tracking-widest"
                         style={{ color: "var(--text-faint)" }}
                       >
                         Top Scores
