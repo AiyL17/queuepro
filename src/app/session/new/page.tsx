@@ -9,6 +9,7 @@ import {
   ArrowLeft, ArrowRight, Plus, X, Rocket, Loader2,
   UserPlus, User, Users, Check,
 } from "lucide-react";
+import { useToast } from "@/lib/toast";
 
 interface CourtSetup  { name: string; skillLevel: SkillLevel; }
 interface PlayerSetup { name: string; skillLevel: SkillLevel; }
@@ -23,13 +24,13 @@ const SKILL_COLORS: Record<SkillLevel, string> = {
 
 export default function NewSessionPage() {
   const router = useRouter();
+  const toast  = useToast();
   const [gameMode, setGameMode]           = useState<GameMode>("doubles");
   const [courts, setCourts]               = useState<CourtSetup[]>([{ name: "Court 1", skillLevel: "beginner" }]);
   const [players, setPlayers]             = useState<PlayerSetup[]>([]);
   const [playerName, setPlayerName]       = useState("");
   const [playerSkill, setPlayerSkill]     = useState<SkillLevel>("beginner");
   const [loading, setLoading]             = useState(false);
-  const [error, setError]                 = useState("");
   const [step, setStep]                   = useState<1 | 2>(1);
 
   const addCourt    = () => setCourts([...courts, { name: `Court ${courts.length + 1}`, skillLevel: "beginner" }]);
@@ -46,8 +47,8 @@ export default function NewSessionPage() {
   const removePlayer = (i: number) => setPlayers(players.filter((_, idx) => idx !== i));
 
   const handleStart = async () => {
-    if (players.length === 0) { setError("Add at least one player before starting."); return; }
-    setLoading(true); setError("");
+    if (players.length === 0) { toast.error("Add at least one player before starting."); return; }
+    setLoading(true);
     try {
       const supabase = createClient();
       const playersPerCourt = gameMode === "singles" ? 2 : 4;
@@ -139,75 +140,53 @@ export default function NewSessionPage() {
       localStorage.setItem("qp-last-session", session.id);
       router.push(`/session/${session.id}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create session");
+      toast.error(err instanceof Error ? err.message : "Failed to create session");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen p-4 sm:p-6 max-w-4xl mx-auto" style={{ background: "var(--bg-page)" }}>
-      {/* Header */}
-      <div className="mb-6 sm:mb-8 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
-        {/* Mobile top bar (Back button + ThemeToggle) / Desktop left element */}
-        <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+    <main className="min-h-screen max-w-4xl mx-auto" style={{ background: "var(--bg-page)" }}>
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 sm:px-6 py-3 mb-0"
+        style={{background: "var(--bg-page)",
+          borderBottom: "1px solid var(--border-subtle)",
+          backdropFilter: "blur(12px)",}}
+      >
+        {/* Left cluster */}
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => step === 2 ? setStep(1) : router.push("/")}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium transition-all hover:opacity-80 flex-shrink-0"
-            style={{ background: "var(--bg-card)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            style={{background: "var(--bg-card)", color: "var(--text-muted)", border: "1px solid var(--border)"}}
           >
             <ArrowLeft size={15} /> {step === 2 ? "Courts" : "Home"}
           </button>
-          
-          <div className="sm:hidden">
-            <ThemeToggle />
-          </div>
-        </div>
-
-        {/* Title and Subtitle section */}
-        <div className="flex-1 min-w-0 flex items-center justify-between sm:block">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight" style={{ color: "var(--text-heading)" }}>
-              New Session
-            </h1>
-            <p className="text-xs sm:text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
+          <div className="w-px h-4 flex-shrink-0 hidden sm:block" style={{background: "var(--border)"}} />
+          <div className="hidden sm:block">
+            <h1 className="text-sm font-black tracking-tight" style={{color: "var(--text-heading)"}}>New Session</h1>
+            <p className="text-xs" style={{color: "var(--text-muted)"}}>
               Step {step} of 2 — {step === 1 ? "Game mode & courts" : "Add players"}
             </p>
           </div>
-
-          {/* Step indicators on mobile */}
-          <div className="flex gap-1.5 sm:hidden flex-shrink-0">
-            {[1, 2].map((s) => (
-              <div
-                key={s}
-                className="h-1.5 rounded-full transition-all duration-300"
-                style={{
-                  width: step >= s ? "28px" : "12px",
-                  background: step >= s ? "var(--gradient-cta)" : "var(--step-inactive)",
-                }}
-              />
-            ))}
-          </div>
         </div>
-
-        {/* Desktop progress indicators + ThemeToggle */}
-        <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
+        {/* Right cluster */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           <div className="flex gap-1.5">
             {[1, 2].map((s) => (
               <div
                 key={s}
                 className="h-1.5 rounded-full transition-all duration-300"
-                style={{
-                  width: step >= s ? "28px" : "12px",
-                  background: step >= s ? "var(--gradient-cta)" : "var(--step-inactive)",
-                }}
+                style={{width: step >= s ? "28px" : "12px",
+                  background: step >= s ? "var(--gradient-cta)" : "var(--step-inactive)",}}
               />
             ))}
           </div>
           <ThemeToggle />
         </div>
-      </div>
-
+      </header>
+      <div className="px-4 sm:px-6 pt-5 pb-6">
       {/* ── STEP 1 ── */}
       {step === 1 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
@@ -215,7 +194,7 @@ export default function NewSessionPage() {
           <div>
           {/* Game Mode */}
           <div className="mb-7">
-            <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>Game Mode</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest mb-1" style={{color: "var(--text-faint)"}}>Game Mode</h2>
             <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>How will matches be played?</p>
             <div className="grid grid-cols-2 gap-3">
               {([
@@ -248,7 +227,7 @@ export default function NewSessionPage() {
           {/* Right col: Courts */}
           <div className="flex flex-col min-w-0">
             <div className="mb-4 flex-1 min-w-0">
-              <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>Courts ({courts.length})</h2>
+              <h2 className="text-xs font-bold uppercase tracking-widest mb-1" style={{color: "var(--text-faint)"}}>Courts ({courts.length})</h2>
               <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
                 Add courts and assign a skill level to each.
               </p>
@@ -325,7 +304,7 @@ export default function NewSessionPage() {
             {/* Left col: Add form */}
             <div>
               <div className="mb-5">
-                <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>Add Players</h2>
+                <h2 className="text-xs font-bold uppercase tracking-widest mb-1" style={{color: "var(--text-faint)"}}>Add Players</h2>
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>
                   Players will be auto-assigned to courts by skill level when you start.
                 </p>
@@ -364,9 +343,7 @@ export default function NewSessionPage() {
             {/* Right col: Player list */}
             <div className="min-w-0">
               <div className="mb-5">
-                <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>
-                  Players <span className="text-base font-normal" style={{ color: "var(--text-faint)" }}>({players.length})</span>
-                </h2>
+                <h2 className="text-xs font-bold uppercase tracking-widest mb-1" style={{color: "var(--text-faint)"}}>Players ({players.length})</h2>
               </div>
 
               {players.length === 0 ? (
@@ -402,12 +379,6 @@ export default function NewSessionPage() {
 
             {/* Full-width CTA */}
             <div className="lg:col-span-2">
-              {error && (
-                <div className="rounded-2xl px-4 py-3 mb-4 text-sm"
-                  style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}>
-                  {error}
-                </div>
-              )}
               <button onClick={handleStart} disabled={loading || players.length === 0}
                 className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2"
                 style={{ background: "var(--gradient-green)", boxShadow: players.length > 0 ? "var(--glow-green)" : "none" }}>
@@ -421,6 +392,7 @@ export default function NewSessionPage() {
           </div>
         </div>
       )}
+      </div>
     </main>
   );
 }
