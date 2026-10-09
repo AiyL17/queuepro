@@ -55,11 +55,28 @@ export default function NewSessionPage() {
 
       // 1. Create session with a random organizer token for ownership verification
       const organizerToken = crypto.randomUUID();
-      const { data: session, error: se } = await supabase
+      let session: { id: string } | null = null;
+
+      // Try inserting with organizer_token first (requires DB migration to have been run)
+      const { data: s1, error: se1 } = await supabase
         .from("sessions")
         .insert({ mode: "guest", game_mode: gameMode, status: "active", organizer_token: organizerToken })
         .select().single();
-      if (se) throw se;
+
+      if (se1) {
+        // Column likely doesn't exist yet — fall back without it
+        const { data: s2, error: se2 } = await supabase
+          .from("sessions")
+          .insert({ mode: "guest", game_mode: gameMode, status: "active" })
+          .select().single();
+        if (se2) throw se2;
+        session = s2;
+        // Clear the token so we don't store a token that won't match anything
+        localStorage.removeItem(`qp-organizer-${s2.id}`);
+      } else {
+        session = s1;
+      }
+      if (!session) throw new Error("Failed to create session");
 
       // 2. Create courts
       const { data: createdCourts, error: ce } = await supabase

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Court, Player, QueueEntry, GameMode } from "@/lib/types";
+import { Court, Player, QueueEntry, GameMode, SkillLevel, SKILL_LEVELS } from "@/lib/types";
 import { requeueAfterMatch, tryFillCourts } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink } from "lucide-react";
@@ -50,6 +50,10 @@ export default function SessionPage() {
   const [showQr, setShowQr]           = useState(false);
   const [qrCopied, setQrCopied]       = useState(false);
   const [isOrganizer, setIsOrganizer] = useState(false);
+  const [showAddCourt, setShowAddCourt] = useState(false);
+  const [newCourtName, setNewCourtName] = useState("");
+  const [newCourtSkill, setNewCourtSkill] = useState<SkillLevel>("beginner");
+  const [addingCourt, setAddingCourt]   = useState(false);
   const toast = useToast();
   const scrollY = useScrollPosition();
 
@@ -286,6 +290,62 @@ export default function SessionPage() {
     }
   };
 
+  const openAddCourtModal = () => {
+    setNewCourtName(`Court ${courts.length + 1}`);
+    setNewCourtSkill("beginner");
+    setShowAddCourt(true);
+  };
+
+  const handleAddCourt = async () => {
+    if (!newCourtName.trim()) {
+      toast.error("Please enter a court name");
+      return;
+    }
+    setAddingCourt(true);
+    try {
+      const supabase = createClient();
+      const { error: ce } = await supabase
+        .from("courts")
+        .insert({
+          session_id: sessionId,
+          name: newCourtName.trim(),
+          assigned_skill_level: newCourtSkill,
+          status: "available",
+        });
+      if (ce) throw ce;
+
+      toast.success(`${newCourtName.trim()} added!`);
+      setShowAddCourt(false);
+
+      // Attempt to immediately auto-fill court if waiting players match
+      await tryFillCourts(sessionId, gameMode);
+      await fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to add court");
+    } finally {
+      setAddingCourt(false);
+    }
+  };
+
+  const handleDeleteCourt = async (courtId: string, courtName: string) => {
+    if (!isOrganizer) return;
+    const court = courts.find((c) => c.id === courtId);
+    if (court && court.status === "occupied") {
+      toast.error("Cannot remove a court while a match is in progress");
+      return;
+    }
+    if (!confirm(`Are you sure you want to remove ${courtName}?`)) return;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("courts").delete().eq("id", courtId);
+      if (error) throw error;
+      toast.success(`${courtName} removed`);
+      await fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove court");
+    }
+  };
+
   const s1num = parseInt(team1Score) || 0;
   const s2num = parseInt(team2Score) || 0;
 
@@ -456,6 +516,18 @@ export default function SessionPage() {
               <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>Courts</h2>
               <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--bg-card)", color: "var(--text-faint)", border: "1px solid var(--border)" }}>{courts.length} total</span>
+              {isOrganizer && (
+                <button
+                  type="button"
+                  onClick={openAddCourtModal}
+                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm ml-1"
+                  style={{ background: "var(--gradient-cta)", color: "#fff", boxShadow: "0 2px 10px rgba(124,58,237,0.3)" }}
+                  title="Add a new court to this session"
+                >
+                  <Plus size={13} strokeWidth={2.5} />
+                  <span>Add Court</span>
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {courts.map((court) => {
@@ -499,19 +571,34 @@ export default function SessionPage() {
                           </span>
                         </div>
                       </div>
-                      <span
-                        className="inline-flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0"
-                        style={{
-                          background: isOccupied ? color + "18" : "var(--court-available-bg)",
-                          color:      isOccupied ? color       : "var(--court-available-text)",
-                          border: `1px solid ${isOccupied ? color + "40" : "transparent"}`,
-                        }}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isOccupied ? "animate-pulse" : ""}`}
-                          style={{ background: isOccupied ? color : "var(--court-available-text)" }}
-                        />
-                        {isOccupied ? "In Play" : "Available"}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="inline-flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0"
+                          style={{
+                            background: isOccupied ? color + "18" : "var(--court-available-bg)",
+                            color:      isOccupied ? color       : "var(--court-available-text)",
+                            border: `1px solid ${isOccupied ? color + "40" : "transparent"}`,
+                          }}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isOccupied ? "animate-pulse" : ""}`}
+                            style={{ background: isOccupied ? color : "var(--court-available-text)" }}
+                          />
+                          {isOccupied ? "In Play" : "Available"}
+                        </span>
+                        {isOrganizer && !isOccupied && courts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCourt(court.id, court.name);
+                            }}
+                            title={`Remove ${court.name}`}
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--text-faint)] hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Players currently playing */}
@@ -1122,6 +1209,131 @@ export default function SessionPage() {
               >
                 <ExternalLink size={13} /> Open Link
               </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Court Modal ── */}
+      {showAddCourt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+          onClick={() => !addingCourt && setShowAddCourt(false)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl p-6 flex flex-col gap-5 animate-scale-in"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setShowAddCourt(false)}
+              disabled={addingCourt}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:opacity-80 cursor-pointer disabled:opacity-40"
+              style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}
+            >
+              <X size={15} />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 pr-8">
+              <div
+                className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, #7c3aed22, #9333ea22)", border: "1px solid rgba(124,58,237,0.3)" }}
+              >
+                <Plus size={20} style={{ color: "#a78bfa" }} />
+              </div>
+              <div>
+                <p className="font-black text-base leading-tight" style={{ color: "var(--text-heading)" }}>
+                  Add Court
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--text-faint)" }}>
+                  Add a new court to this session
+                </p>
+              </div>
+            </div>
+
+            {/* Court Name Input */}
+            <div>
+              <label className="block text-[10px] font-bold mb-1.5 tracking-widest uppercase" style={{ color: "var(--text-faint)" }}>
+                Court Name
+              </label>
+              <input
+                type="text"
+                value={newCourtName}
+                onChange={(e) => setNewCourtName(e.target.value)}
+                placeholder="e.g. Court 2"
+                className="w-full px-3.5 py-2.5 rounded-2xl text-sm font-bold outline-none transition-all"
+                style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                autoFocus
+              />
+            </div>
+
+            {/* Skill Level Selection */}
+            <div>
+              <label className="block text-[10px] font-bold mb-1.5 tracking-widest uppercase" style={{ color: "var(--text-faint)" }}>
+                Assigned Skill Level
+              </label>
+              <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto">
+                {SKILL_LEVELS.map((s) => {
+                  const color = SKILL_COLORS[s.value] || "#6b7280";
+                  const isSelected = newCourtSkill === s.value;
+                  return (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setNewCourtSkill(s.value)}
+                      className="flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer"
+                      style={{
+                        background: isSelected ? `${color}18` : "var(--bg-subtle)",
+                        border: `1.5px solid ${isSelected ? color : "var(--border)"}`,
+                        color: isSelected ? color : "var(--text-primary)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+                        <span>{s.label}</span>
+                      </div>
+                      {isSelected && <Check size={14} style={{ color }} strokeWidth={3} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAddCourt(false)}
+                disabled={addingCourt}
+                className="flex-1 py-2.5 rounded-2xl text-xs font-semibold hover:opacity-80 transition-all cursor-pointer"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddCourt}
+                disabled={addingCourt || !newCourtName.trim()}
+                className="flex-1 py-2.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-md"
+                style={{
+                  background: "linear-gradient(135deg, #7c3aed, #9333ea)",
+                  color: "#fff",
+                  boxShadow: "0 4px 14px rgba(124,58,237,0.35)",
+                }}
+              >
+                {addingCourt ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Adding...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={14} /> Add Court
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
