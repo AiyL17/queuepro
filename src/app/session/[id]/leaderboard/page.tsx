@@ -87,24 +87,30 @@ export default function LeaderboardPage() {
   const hasPairs      = activeSkills.some((s) => getPairsForSkill(s.value).length > 0);
 
   return (
-    <main className="min-h-screen p-4 sm:p-6 max-w-5xl mx-auto" style={{ background: "var(--bg-page)" }}>
+    <main className="min-h-screen max-w-5xl mx-auto" style={{ background: "var(--bg-page)" }}>
 
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6 animate-fade-in">
-        <BackButton fallback={`/session/${sessionId}`} />
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, #7c3aed, #9333ea)", color: "#fff" }}>
-            <Trophy size={20} className="text-amber-300 animate-pulse" />
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 sm:px-6 py-3"
+        style={{background: "var(--bg-page)",
+          borderBottom: "1px solid var(--border-subtle)",
+          backdropFilter: "blur(12px)",}}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <BackButton fallback={`/session/${sessionId}`} />
+          <div className="w-px h-4 flex-shrink-0" style={{background: "var(--border)"}} />
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{background: "linear-gradient(135deg, #7c3aed, #9333ea)", color: "#fff"}}>
+            <Trophy size={16} className="text-amber-300" />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight" style={{ color: "var(--text-heading)" }}>Leaderboard</h1>
-            <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Live session rankings &amp; stats</p>
+            <h1 className="text-sm font-black tracking-tight" style={{color: "var(--text-heading)"}}>Leaderboard</h1>
+            <p className="text-xs" style={{color: "var(--text-muted)"}}>Live session rankings</p>
           </div>
         </div>
-        <div className="ml-auto">
-          <ThemeToggle />
-        </div>
-      </div>
+        <ThemeToggle />
+      </header>
+
+      <div className="px-4 sm:px-6 pt-4 pb-6 animate-slide-up">
 
       {/* Skill Filter Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar">
@@ -298,7 +304,10 @@ export default function LeaderboardPage() {
           )}
         </div>
 
-      </div>
+      </div>{/* end grid */}
+
+      </div>{/* end px-4 sm:px-6 pt-4 pb-6 animate-slide-up wrapper */}
+
     </main>
   );
 }
