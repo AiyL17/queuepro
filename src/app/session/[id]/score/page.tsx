@@ -61,7 +61,8 @@ export default function ScorePage() {
       .select("*, player:players(*)")
       .eq("session_id", sessionId)
       .eq("status", "playing")
-      .eq("skill_level", typedCourt?.assigned_skill_level ?? "");
+      .eq("skill_level", typedCourt?.assigned_skill_level ?? "")
+      .order("joined_at", { ascending: true });
 
     // Players currently playing — split evenly into two sides by join order
     const playing: PlayingPlayer[] = ((queueData ?? []) as Array<{ id: string; player: Player }>)
@@ -160,7 +161,14 @@ export default function ScorePage() {
       toast.success(`Score saved — ${s1}–${s2}`);
       setTimeout(() => router.push(`/session/${sessionId}`), 1500);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to save score");
+      // If requeueAfterMatch threw after players were marked done, they may be
+      // stranded as "done". The recovery pass inside requeueAfterMatch will
+      // detect and rescue them on the next call. Surface the error so the
+      // operator can retry (re-tapping Save Score re-drives the same flow).
+      toast.error(
+        (err instanceof Error ? err.message : "Failed to save score") +
+          " — tap Save Score again to retry."
+      );
     } finally { setSaving(false); }
   };
 

@@ -2,16 +2,16 @@
  * queue-helpers.ts
  *
  * Shared post-match logic:
- *  1. Always re-insert finished players as "waiting" at the back of the queue
+ *  1. Recovery pass: any finished player still stuck in "done" status (e.g. from
+ *     a previous partial failure) is restored to "waiting" so they re-enter the queue.
+ *  2. Always re-insert finished players as "waiting" at the back of the queue
  *     (with doubles pairing rotation). They go AFTER any existing waiters.
- *  2. Re-fetch the full live waitlist (which now includes the re-queued players).
- *  3. If enough waiting players exist → shuffle the candidates, then promote N
- *     to the freed court so team composition varies every rotation.
- *  4. Otherwise → court stays "available"; the operator or a future submit handles it.
- *
- * Recovery: if finished players are still in "done" status at the start of this
- * function (e.g. from a previous partial failure), they are recovered and
- * re-inserted as "waiting" before the waitlist check.
+ *  3. Re-fetch the full live waitlist (which now includes the re-queued players).
+ *  4. If enough waiting players exist → promote the first N to the freed court.
+ *     Queue entries are promoted FIRST; court is marked "occupied" SECOND so
+ *     that a mid-flight failure leaves the court "available" rather than
+ *     "occupied" with zero playing entries.
+ *  5. Otherwise → court stays "available"; the operator or a future submit handles it.
  *
  * This ensures finished players always rotate back into the queue and are never
  * permanently stuck in "done" status.
@@ -57,16 +57,66 @@ export async function requeueAfterMatch(
   const supabase = createClient();
   const needed = gameMode === "singles" ? 2 : 4;
 
+  const finishedIds = finishedPlayers.map((p) => p.id);
+
   // ── Recovery pass ─────────────────────────────────────────────────────────
   //
-  // If any finished players are still stuck in "done" status (e.g. from a
-  // previous partial failure between the done-write and this call), detect and
-  // recover them by re-marking them as candidates for re-insertion below.
+  // Detect any finished player still stuck in "done" status from a previous
+  // partial run (i.e. requeueAfterMatch threw after the done-write but before
+  // a waiting entry was inserted). Re-mark them as "waiting" immediately so
+  // the de-dup guard in Step B sees them as already handled and skips the
+  // duplicate insert, and so they appear in the live waitlist in Step C.
   //
-  // We only recover players that are still "done" — players already re-inserted
-  // as "waiting" from a prior partial run are handled by the de-dup guard below.
+  // Players that are already "waiting" (from a successful prior re-insert) are
+  // not touched — they remain in the queue with their original joined_at.
 
-  const finishedIds = finishedPlayers.map((p) => p.id);
+  const { data: stuckDone, error: stuckErr } = await supabase
+    .from("queue_entries")
+    .select("id, player_id")
+    .eq("session_id", sessionId)
+    .eq("status", "done")
+    .in("player_id", finishedIds);
+
+  if (stuckErr) {
+    throw new Error(`requeueAfterMatch: failed to check for stuck-done players — ${stuckErr.message}`);
+  }
+
+  // Filter to players who have no existing "waiting" entry (true stuck case).
+  const stuckIds = (stuckDone ?? []).map((e: { id: string; player_id: string }) => e.player_id);
+
+  if (stuckIds.length > 0) {
+    const { data: alreadyWaitingForRecovery } = await supabase
+      .from("queue_entries")
+      .select("player_id")
+      .eq("session_id", sessionId)
+      .eq("status", "waiting")
+      .eq("skill_level", court.assigned_skill_level)
+      .in("player_id", stuckIds);
+
+    const alreadyWaitingPlayerIds = new Set(
+      (alreadyWaitingForRecovery ?? []).map((e: { player_id: string }) => e.player_id)
+    );
+
+    // For truly stuck players (done + no waiting entry), insert a fresh waiting entry.
+    const trulyStuck = stuckIds.filter((pid: string) => !alreadyWaitingPlayerIds.has(pid));
+
+    if (trulyStuck.length > 0) {
+      const recoveryBase = Date.now() - 1000; // Place before any new re-inserts
+      const { error: recoveryErr } = await supabase.from("queue_entries").insert(
+        trulyStuck.map((pid: string, idx: number) => ({
+          session_id: sessionId,
+          player_id: pid,
+          skill_level: court.assigned_skill_level as SkillLevel,
+          status: "waiting",
+          joined_at: new Date(recoveryBase + idx).toISOString(),
+        }))
+      );
+
+      if (recoveryErr) {
+        throw new Error(`requeueAfterMatch: failed to recover stuck-done players — ${recoveryErr.message}`);
+      }
+    }
+  }
 
   // ── Step A: Compute rotated player order ──────────────────────────────────
   //
@@ -191,15 +241,10 @@ export async function requeueAfterMatch(
     const candidates = [...shuffle(others), ...shuffle(requeued)];
     const toPromote  = candidates.slice(0, needed);
 
-    const { error: courtErr } = await supabase
-      .from("courts")
-      .update({ status: "occupied" })
-      .eq("id", court.id);
-
-    if (courtErr) {
-      throw new Error(`requeueAfterMatch: failed to mark court occupied — ${courtErr.message}`);
-    }
-
+    // Promote queue entries FIRST, then mark court occupied.
+    // This ordering ensures a failure between the two writes leaves the court
+    // as "available" (recoverable by operator) rather than "occupied" with
+    // zero playing entries (an unrecoverable phantom state).
     const { error: promoteErr } = await supabase
       .from("queue_entries")
       .update({ status: "playing" })
@@ -208,6 +253,15 @@ export async function requeueAfterMatch(
 
     if (promoteErr) {
       throw new Error(`requeueAfterMatch: failed to promote waiting players to playing — ${promoteErr.message}`);
+    }
+
+    const { error: courtErr } = await supabase
+      .from("courts")
+      .update({ status: "occupied" })
+      .eq("id", court.id);
+
+    if (courtErr) {
+      throw new Error(`requeueAfterMatch: failed to mark court occupied — ${courtErr.message}`);
     }
   }
 

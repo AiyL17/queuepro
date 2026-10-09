@@ -185,7 +185,14 @@ export default function SessionPage() {
       closeModal();
       fetchData();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to save");
+      // If requeueAfterMatch threw after players were marked done, they may be
+      // stranded as "done". The recovery pass inside requeueAfterMatch will
+      // detect and rescue them on the next call. Surface the error so the
+      // operator can retry (re-tapping Save on the same court re-drives the flow).
+      toast.error(
+        (err instanceof Error ? err.message : "Failed to save") +
+          " — tap Save again to retry."
+      );
     } finally { setSaving(false); }
   };
 
