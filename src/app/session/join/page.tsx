@@ -26,7 +26,8 @@ export default function JoinSessionPage() {
         .single();
       if (fetchError || !data) { toast.error("Session not found. Check the ID and try again."); return; }
       if (data.status === "ended") { toast.error("This session has already ended."); return; }
-      router.push(`/session/${data.id}`);
+      // Send player to check-in so they enter their name + skill before joining
+      router.push(`/session/${data.id}/checkin`);
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Court, Player, QueueEntry, GameMode } from "@/lib/types";
 import { requeueAfterMatch, tryFillCourts } from "@/lib/queue-helpers";
@@ -31,9 +31,10 @@ interface ScoreModal {
 }
 
 export default function SessionPage() {
-  const params    = useParams();
-  const router    = useRouter();
-  const sessionId = params.id as string;
+  const params       = useParams();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId    = params.id as string;
 
   const [gameMode, setGameMode]       = useState<GameMode>("doubles");
   const [courts, setCourts]           = useState<CourtWithPlayers[]>([]);
@@ -54,6 +55,17 @@ export default function SessionPage() {
   const checkinUrl = typeof window !== "undefined"
     ? `${window.location.origin}/session/${sessionId}/checkin`
     : "";
+
+  // Show a personalised welcome toast when a player arrives from check-in
+  useEffect(() => {
+    const joinedName = searchParams.get("joined");
+    if (joinedName) {
+      toast.success(`🏓 Welcome, ${joinedName}! You're in the queue.`);
+      // Clean the query param from the URL without re-navigating
+      router.replace(`/session/${sessionId}`, { scroll: false });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const vibrate = (pattern: number[]) => {
     if (typeof navigator !== "undefined" && navigator.vibrate) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { SKILL_LEVELS, SkillLevel } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -28,6 +28,7 @@ const SKILL_DESC: Record<SkillLevel, string> = {
 
 export default function CheckinPage() {
   const params    = useParams();
+  const router    = useRouter();
   const sessionId = params.id as string;
 
   const [name, setName]             = useState("");
@@ -49,8 +50,6 @@ export default function CheckinPage() {
         .from("queue_entries")
         .insert({ session_id: sessionId, player_id: player.id, skill_level: skillLevel, status: "waiting" });
       if (qe) throw qe;
-      toast.success(`${name} joined the ${skillLevel.replace(/_/g, " ")} queue!`);
-      setName("");
 
       // After check-in, immediately try to fill any available courts
       const { data: sd } = await supabase
@@ -60,9 +59,13 @@ export default function CheckinPage() {
         .single();
       const gameMode = (sd?.game_mode ?? "doubles") as "singles" | "doubles";
       await tryFillCourts(sessionId, gameMode);
+
+      toast.success(`${name.trim()} joined the queue! Redirecting…`);
+      router.push(`/session/${sessionId}?joined=${encodeURIComponent(name.trim())}`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to check in");
-    } finally { setLoading(false); }
+      setLoading(false);
+    }
   };
 
   return (
