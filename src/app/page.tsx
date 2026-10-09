@@ -19,6 +19,14 @@ export default function Home() {
   const [copiedJoin, setCopiedJoin] = useState(false);
   const [currentUrl, setCurrentUrl] = useState("");
   const [joinUrl, setJoinUrl] = useState("");
+  const [simStep, setSimStep] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSimStep((prev) => (prev + 1) % 6);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -496,17 +504,21 @@ export default function Home() {
         </div>
 
         {/* Dynamic Visual Courts Display */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 transition-all duration-300">
           {/* Court 1: Beginner */}
           {(activeTier === "all" || activeTier === "beginner") && (
             <div
-              className="p-5 rounded-3xl flex flex-col justify-between transition-all duration-300 hover:scale-[1.01]"
+              className="p-5 rounded-3xl flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] relative overflow-hidden"
               style={{
                 background: "var(--bg-card)",
-                border: "1px solid rgba(59,130,246,0.3)",
-                boxShadow: "0 4px 24px rgba(59,130,246,0.06)",
+                border: "1px solid rgba(59,130,246,0.35)",
+                boxShadow: "0 4px 24px rgba(59,130,246,0.08)",
               }}
             >
+              <div
+                className="absolute -top-12 -right-12 w-28 h-28 rounded-full pointer-events-none animate-ambient-pulse"
+                style={{ background: "radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)" }}
+              />
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -521,21 +533,34 @@ export default function Home() {
                 <div className="p-3.5 rounded-2xl mb-3 space-y-2" style={{ background: "var(--bg-subtle)" }}>
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold" style={{ color: "var(--text-primary)" }}>Liam &amp; Sophie</span>
-                    <span className="font-black text-blue-400 px-2 py-0.5 rounded-lg bg-blue-500/10">8</span>
+                    <span
+                      key={`c1-t1-${simStep >= 4 ? 11 : simStep >= 3 ? 10 : simStep >= 1 ? 9 : 8}`}
+                      className="font-black text-blue-400 px-2 py-0.5 rounded-lg bg-blue-500/10 animate-score-pop inline-block"
+                    >
+                      {simStep >= 4 ? 11 : simStep >= 3 ? 10 : simStep >= 1 ? 9 : 8}
+                    </span>
                   </div>
                   <div className="h-px w-full" style={{ background: "var(--border-subtle)" }} />
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold" style={{ color: "var(--text-primary)" }}>Noah &amp; Emma</span>
-                    <span className="font-black text-blue-400 px-2 py-0.5 rounded-lg bg-blue-500/10">6</span>
+                    <span
+                      key={`c1-t2-${simStep >= 2 ? 7 : 6}`}
+                      className="font-black text-blue-400 px-2 py-0.5 rounded-lg bg-blue-500/10 animate-score-pop inline-block"
+                    >
+                      {simStep >= 2 ? 7 : 6}
+                    </span>
                   </div>
                 </div>
               </div>
 
               <div className="pt-2 flex items-center justify-between text-[11px]" style={{ color: "var(--text-muted)" }}>
                 <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Live Match (Doubles)
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {simStep >= 4 ? "Match Won (11-7)" : simStep >= 3 ? "Match Point!" : "Live Match (Doubles)"}
                 </span>
-                <span>2 in waiting queue</span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">
+                  2 in waiting queue
+                </span>
               </div>
             </div>
           )}
@@ -543,13 +568,17 @@ export default function Home() {
           {/* Court 2: Intermediate */}
           {(activeTier === "all" || activeTier === "intermediate") && (
             <div
-              className="p-5 rounded-3xl flex flex-col justify-between transition-all duration-300 hover:scale-[1.01]"
+              className="p-5 rounded-3xl flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] relative overflow-hidden"
               style={{
                 background: "var(--bg-card)",
-                border: "1px solid rgba(249,115,22,0.3)",
-                boxShadow: "0 4px 24px rgba(249,115,22,0.06)",
+                border: "1px solid rgba(249,115,22,0.35)",
+                boxShadow: "0 4px 24px rgba(249,115,22,0.08)",
               }}
             >
+              <div
+                className="absolute -top-12 -right-12 w-28 h-28 rounded-full pointer-events-none animate-ambient-pulse"
+                style={{ background: "radial-gradient(circle, rgba(249,115,22,0.2) 0%, transparent 70%)" }}
+              />
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -563,22 +592,39 @@ export default function Home() {
 
                 <div className="p-3.5 rounded-2xl mb-3 space-y-2" style={{ background: "var(--bg-subtle)" }}>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>Carlos &amp; Elena</span>
-                    <span className="font-black text-amber-400 px-2 py-0.5 rounded-lg bg-amber-500/10">10</span>
+                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {simStep >= 4 ? "Lucas & Mia" : "Carlos & Elena"}
+                    </span>
+                    <span
+                      key={`c2-t1-${simStep >= 4 ? 2 : simStep >= 2 ? 11 : 10}`}
+                      className="font-black text-amber-400 px-2 py-0.5 rounded-lg bg-amber-500/10 animate-score-pop inline-block"
+                    >
+                      {simStep >= 4 ? 2 : simStep >= 2 ? 11 : 10}
+                    </span>
                   </div>
                   <div className="h-px w-full" style={{ background: "var(--border-subtle)" }} />
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>Marcus &amp; Chloe</span>
-                    <span className="font-black text-amber-400 px-2 py-0.5 rounded-lg bg-amber-500/10">9</span>
+                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {simStep >= 4 ? "Ben & Zoe" : "Marcus & Chloe"}
+                    </span>
+                    <span
+                      key={`c2-t2-${simStep >= 4 ? 1 : simStep >= 1 ? 10 : 9}`}
+                      className="font-black text-amber-400 px-2 py-0.5 rounded-lg bg-amber-500/10 animate-score-pop inline-block"
+                    >
+                      {simStep >= 4 ? 1 : simStep >= 1 ? 10 : 9}
+                    </span>
                   </div>
                 </div>
               </div>
 
               <div className="pt-2 flex items-center justify-between text-[11px]" style={{ color: "var(--text-muted)" }}>
                 <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" /> Match Point!
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  {simStep >= 4 ? "Live Match" : simStep >= 2 ? "Match Finished · 11-10" : simStep === 1 ? "Deuce! 10-10" : "Match Point!"}
                 </span>
-                <span>Auto-fills next</span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">
+                  Auto-fills next
+                </span>
               </div>
             </div>
           )}
@@ -586,17 +632,21 @@ export default function Home() {
           {/* Court 3: Advanced */}
           {(activeTier === "all" || activeTier === "advanced") && (
             <div
-              className="p-5 rounded-3xl flex flex-col justify-between transition-all duration-300 hover:scale-[1.01]"
+              className="p-5 rounded-3xl flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] relative overflow-hidden"
               style={{
                 background: "var(--bg-card)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                boxShadow: "0 4px 24px rgba(239,68,68,0.06)",
+                border: "1px solid rgba(239,68,68,0.35)",
+                boxShadow: "0 4px 24px rgba(239,68,68,0.08)",
               }}
             >
+              <div
+                className="absolute -top-12 -right-12 w-28 h-28 rounded-full pointer-events-none animate-ambient-pulse"
+                style={{ background: "radial-gradient(circle, rgba(239,68,68,0.2) 0%, transparent 70%)" }}
+              />
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-400 animate-pulse" />
                     <span className="text-sm font-black" style={{ color: "var(--text-heading)" }}>Court 3</span>
                   </div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">
@@ -606,24 +656,40 @@ export default function Home() {
 
                 <div className="p-3.5 rounded-2xl mb-3 space-y-2" style={{ background: "var(--bg-subtle)" }}>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>David (4.5)</span>
-                    <span className="flex items-center gap-1 font-black text-emerald-400 px-2 py-0.5 rounded-lg bg-emerald-500/10">
-                      11 <Check size={11} strokeWidth={3} />
+                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {simStep >= 2 ? "Maya & Ryan (3.5)" : "David (4.5)"}
+                    </span>
+                    <span
+                      key={`c3-t1-${simStep >= 5 ? 4 : simStep >= 3 ? 3 : simStep >= 2 ? 1 : 11}`}
+                      className="flex items-center gap-1 font-black text-emerald-400 px-2 py-0.5 rounded-lg bg-emerald-500/10 animate-score-pop inline-block"
+                    >
+                      {simStep >= 5 ? 4 : simStep >= 3 ? 3 : simStep >= 2 ? 1 : 11}
+                      {simStep < 2 && <Check size={11} strokeWidth={3} className="inline ml-1" />}
                     </span>
                   </div>
                   <div className="h-px w-full" style={{ background: "var(--border-subtle)" }} />
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>Jordan (4.5)</span>
-                    <span className="font-black text-rose-400 px-2 py-0.5 rounded-lg bg-rose-500/10">7</span>
+                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {simStep >= 2 ? "Sam & Alex (4.0)" : "Jordan (4.5)"}
+                    </span>
+                    <span
+                      key={`c3-t2-${simStep >= 5 ? 3 : simStep >= 3 ? 2 : simStep >= 2 ? 0 : 7}`}
+                      className="font-black text-rose-400 px-2 py-0.5 rounded-lg bg-rose-500/10 animate-score-pop inline-block"
+                    >
+                      {simStep >= 5 ? 3 : simStep >= 3 ? 2 : simStep >= 2 ? 0 : 7}
+                    </span>
                   </div>
                 </div>
               </div>
 
               <div className="pt-2 flex items-center justify-between text-[11px]" style={{ color: "var(--text-muted)" }}>
                 <span className="flex items-center gap-1.5 text-blue-400 font-semibold">
-                  <ArrowRightCircle size={13} /> Next match rotating in
+                  <ArrowRightCircle size={13} className={simStep >= 2 ? "animate-pulse" : "animate-spin"} style={{ animationDuration: "6s" }} />
+                  {simStep >= 2 ? "Live Match (Doubles)" : "Next match rotating in"}
                 </span>
-                <span>Live sync</span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400">
+                  Live sync
+                </span>
               </div>
             </div>
           )}
@@ -631,12 +697,18 @@ export default function Home() {
 
         {/* Live Auto-Fill Queue Flow Strip */}
         <div
-          className="mt-5 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+          className="mt-5 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-300"
+          style={{
+            background: "var(--bg-card)",
+            border: "1px solid var(--border)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
+          }}
         >
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(124,58,237,0.15)", color: "#a78bfa" }}>
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 animate-pulse"
+              style={{ background: "rgba(124,58,237,0.15)", color: "#a78bfa" }}
+            >
               <Users size={18} />
             </div>
             <div>
@@ -644,16 +716,22 @@ export default function Home() {
                 Waiting Queue Auto-Rotation
               </p>
               <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                When Court 2 finishes, Maya &amp; Ryan (Intermediate) are automatically seated next.
+                When courts finish, Maya &amp; Ryan (Intermediate) are automatically seated next.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Zap size={10} className="fill-amber-400 text-amber-400" /> Next: Maya (3.5)
+            <span
+              className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full ready-shimmer"
+              style={{ color: "#fbbf24", border: "1px solid rgba(245,158,11,0.3)" }}
+            >
+              <Zap size={10} className="fill-amber-400 text-amber-400 animate-bounce" /> Next: Maya (3.5)
             </span>
-            <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Zap size={10} className="fill-amber-400 text-amber-400" /> Next: Ryan (3.5)
+            <span
+              className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full ready-shimmer"
+              style={{ color: "#fbbf24", border: "1px solid rgba(245,158,11,0.3)" }}
+            >
+              <Zap size={10} className="fill-amber-400 text-amber-400 animate-bounce" /> Next: Ryan (3.5)
             </span>
           </div>
         </div>

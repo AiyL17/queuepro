@@ -113,31 +113,42 @@ export function CourtsPanel({ sessionId, gameMode, initialCourts }: Props) {
           <div
             key={court.id}
             onClick={() => handleCourtClick(court)}
-            className="rounded-2xl p-4 relative overflow-hidden transition-all duration-200"
+            className="rounded-2xl p-4 relative overflow-hidden transition-all duration-300 hover:scale-[1.01] group"
             style={{
-              background: "var(--bg-card)",
+              background: isOccupied
+                ? `linear-gradient(145deg, var(--bg-card) 0%, ${color}0a 100%)`
+                : "var(--bg-card)",
               border: `1px solid ${isOccupied ? color + "50" : "var(--border)"}`,
               cursor: isOccupied ? "pointer" : "default",
-              boxShadow: isOccupied ? `0 4px 20px ${color}20` : undefined,
+              boxShadow: isOccupied ? `0 4px 24px ${color}18` : undefined,
             }}
           >
             {/* Skill color bar */}
             <div
-              className="absolute top-0 left-0 w-1 h-full rounded-l-2xl"
+              className="absolute top-0 left-0 w-1.5 h-full rounded-l-2xl"
               style={{ background: color }}
             />
 
-            <div className="pl-2">
+            {/* Ambient Radial Glow on Occupied Court */}
+            {isOccupied && (
+              <div
+                className="absolute -top-10 -right-10 w-24 h-24 rounded-full pointer-events-none animate-ambient-pulse"
+                style={{ background: `radial-gradient(circle, ${color}25 0%, transparent 70%)` }}
+              />
+            )}
+
+            <div className="pl-2 relative z-10">
               {/* Court name + status */}
               <div className="flex items-start justify-between mb-1">
                 <p className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>
                   {court.name}
                 </p>
                 <span
-                  className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                  className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full font-semibold transition-all"
                   style={{
                     background: isOccupied ? "var(--court-occupied-bg)"  : "var(--court-available-bg)",
                     color:      isOccupied ? "var(--court-occupied-text)" : "var(--court-available-text)",
+                    border:     `1px solid ${isOccupied ? "rgba(239,68,68,0.25)" : "rgba(34,197,94,0.25)"}`,
                   }}
                 >
                   <span

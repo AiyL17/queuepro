@@ -282,8 +282,8 @@ export default function QueuePage() {
 
                             {isNext && (
                               <span
-                                className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0"
-                                style={{ background: color + "25", color, border: `1px solid ${color}50` }}
+                                className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0 ready-shimmer"
+                                style={{ color, border: `1px solid ${color}60`, boxShadow: `0 0 10px ${color}30` }}
                               >
                                 Ready
                               </span>
@@ -309,10 +309,10 @@ export default function QueuePage() {
                     <button
                       onClick={() => callToPlay(availableCourts[0].id, nextPlayers.map((q) => q.player_id))}
                       disabled={calling === availableCourts[0].id}
-                      className="w-full py-3 rounded-2xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] shadow-md"
+                      className="w-full py-3 rounded-2xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] shadow-md animate-float-subtle"
                       style={{ background: "var(--gradient-cta)", color: "#fff", boxShadow: "0 4px 16px rgba(124,58,237,0.3)" }}
                     >
-                      <Volume2 size={14} />
+                      <Volume2 size={14} className="animate-bounce" />
                       {calling === availableCourts[0].id
                         ? "Dispatching players..."
                         : `Dispatch next ${nextCount} to ${availableCourts[0].name}`}

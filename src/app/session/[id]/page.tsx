@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Court, Player, QueueEntry, GameMode } from "@/lib/types";
 import { requeueAfterMatch, tryFillCourts } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio } from "lucide-react";
+import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { useToast } from "@/lib/toast";
 import { useScrollPosition } from "@/hooks/useScroll";
@@ -46,8 +46,14 @@ export default function SessionPage() {
   const [saving, setSaving]           = useState(false);
   const [endConfirm, setEndConfirm]   = useState(false);
   const [ending, setEnding]           = useState(false);
+  const [showQr, setShowQr]           = useState(false);
+  const [qrCopied, setQrCopied]       = useState(false);
   const toast = useToast();
   const scrollY = useScrollPosition();
+
+  const checkinUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/session/${sessionId}/checkin`
+    : "";
 
   const vibrate = (pattern: number[]) => {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -331,6 +337,15 @@ export default function SessionPage() {
 
         {/* Right cluster */}
         <div className="flex gap-2 items-center flex-shrink-0">
+          <button
+            onClick={() => setShowQr(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
+            style={{ background: "var(--bg-card)", color: "var(--text-primary)", border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+            title="Show check-in QR code"
+          >
+            <QrCode size={13} />
+            <span className="hidden sm:inline">QR Code</span>
+          </button>
           <button
             onClick={() => router.push(`/session/${sessionId}/leaderboard`)}
             className="hidden lg:flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
@@ -967,6 +982,110 @@ export default function SessionPage() {
                 style={{ background: "linear-gradient(135deg, #16a34a, #059669)", color: "#fff", boxShadow: "0 4px 16px rgba(22,163,74,0.35)" }}>
                 {saving ? <><Loader2 size={15} className="animate-spin" /> Saving...</> : <><Check size={15} /> Save Score</>}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── QR Code Modal ── */}
+      {showQr && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+          onClick={() => setShowQr(false)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl p-6 flex flex-col gap-5"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setShowQr(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:opacity-80 cursor-pointer"
+              style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}
+            >
+              <X size={15} />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 pr-8">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, #7c3aed22, #9333ea22)", border: "1px solid rgba(124,58,237,0.3)" }}>
+                <QrCode size={20} style={{ color: "#a78bfa" }} />
+              </div>
+              <div>
+                <p className="font-black text-base leading-tight" style={{ color: "var(--text-heading)" }}>
+                  Player Check-In QR
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--text-faint)" }}>
+                  Scan to join this session directly
+                </p>
+              </div>
+            </div>
+
+            {/* QR Code image */}
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="rounded-2xl p-4 flex items-center justify-center"
+                style={{ background: "#ffffff", border: "1px solid var(--border)" }}
+              >
+                {checkinUrl ? (
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data=${encodeURIComponent(checkinUrl)}`}
+                    alt="Check-in QR code"
+                    width={200}
+                    height={200}
+                    className="rounded-lg"
+                  />
+                ) : (
+                  <div className="w-[200px] h-[200px] flex items-center justify-center" style={{ color: "var(--text-faint)" }}>
+                    <Loader2 size={28} className="animate-spin" />
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] font-semibold text-center" style={{ color: "var(--text-faint)" }}>
+                Point any phone camera at this code
+              </p>
+            </div>
+
+            {/* Check-in URL pill */}
+            <div
+              className="flex items-center gap-2 rounded-xl px-3 py-2"
+              style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
+            >
+              <span className="text-[11px] font-mono truncate flex-1" style={{ color: "var(--text-muted)" }}>
+                {checkinUrl}
+              </span>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(checkinUrl).then(() => {
+                    setQrCopied(true);
+                    setTimeout(() => setQrCopied(false), 2000);
+                  });
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-xs font-bold transition-all hover:opacity-90 active:scale-95 cursor-pointer"
+                style={{
+                  background: qrCopied ? "var(--success-bg)" : "var(--bg-subtle)",
+                  color: qrCopied ? "var(--success-text)" : "var(--text-primary)",
+                  border: `1px solid ${qrCopied ? "rgba(34,197,94,0.3)" : "var(--border)"}`,
+                }}
+              >
+                {qrCopied ? <><CheckCheck size={13} /> Copied!</> : <><Copy size={13} /> Copy Link</>}
+              </button>
+              <a
+                href={checkinUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-xs font-bold transition-all hover:opacity-90 active:scale-95 cursor-pointer"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #9333ea)", color: "#fff", boxShadow: "0 4px 14px rgba(124,58,237,0.3)" }}
+              >
+                <ExternalLink size={13} /> Open Link
+              </a>
             </div>
           </div>
         </div>
