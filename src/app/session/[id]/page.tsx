@@ -710,34 +710,37 @@ export default function SessionPage() {
                             </div>
 
                             {/* Clashing Battle VS Divider */}
-                            <div className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-1 relative">
-                              {/* Top energetic stream line */}
-                              <div className="w-[1.5px] h-5 rounded-full relative overflow-hidden" style={{ background: color + "30" }}>
-                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-400 to-transparent animate-stream-down" />
+                            <div className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 px-2 relative">
+                              {/* Top energetic beam */}
+                              <div className="w-[2.5px] h-6 rounded-full relative overflow-hidden" style={{ background: color + "35" }}>
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-amber-400 to-red-500 animate-stream-down" />
                               </div>
 
                               {/* Clashing VS Core with Crossed Swords */}
-                              <div className="relative flex items-center justify-center group/clash">
+                              <div className="relative flex items-center justify-center">
                                 <div
-                                  className="absolute -inset-1 rounded-full blur-[4px] opacity-60 pointer-events-none"
-                                  style={{ background: `radial-gradient(circle, ${color}40 0%, transparent 70%)` }}
+                                  className="absolute -inset-2 rounded-full blur-[6px] opacity-70 pointer-events-none"
+                                  style={{ background: `radial-gradient(circle, #ef444460 0%, ${color}40 50%, transparent 70%)` }}
                                 />
                                 <div
-                                  className="relative inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full animate-vs-pulse shadow-sm"
+                                  className="relative inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-1 rounded-full animate-vs-pulse shadow-md"
                                   style={{
-                                    background: `linear-gradient(135deg, var(--bg-card) 0%, ${color}20 100%)`,
-                                    color: "var(--text-primary)",
-                                    border: `1.5px solid ${color}50`,
+                                    background: "var(--bg-card)",
+                                    border: `1.5px solid ${color}70`,
                                   }}
                                 >
-                                  <Swords size={10} className="animate-swords-clash" style={{ color }} />
-                                  <span>VS</span>
+                                  <span className="animate-swords-clash inline-block origin-center">
+                                    <Swords size={13} className="text-amber-500 fill-amber-500/20" />
+                                  </span>
+                                  <span className="tracking-widest font-black text-[10px]" style={{ color: "var(--text-heading)" }}>
+                                    VS
+                                  </span>
                                 </div>
                               </div>
 
-                              {/* Bottom energetic stream line */}
-                              <div className="w-[1.5px] h-5 rounded-full relative overflow-hidden" style={{ background: color + "30" }}>
-                                <div className="absolute inset-0 bg-gradient-to-t from-transparent via-cyan-400 to-transparent animate-stream-up" />
+                              {/* Bottom energetic beam */}
+                              <div className="w-[2.5px] h-6 rounded-full relative overflow-hidden" style={{ background: color + "35" }}>
+                                <div className="absolute inset-0 bg-gradient-to-t from-transparent via-cyan-400 to-violet-500 animate-stream-up" />
                               </div>
                             </div>
 
@@ -799,15 +802,18 @@ export default function SessionPage() {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="relative inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 animate-vs-pulse shadow-sm"
+                                  <div className="relative inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-1 rounded-full flex-shrink-0 animate-vs-pulse shadow-md"
                                     style={{
-                                      background: `linear-gradient(135deg, var(--bg-card) 0%, ${color}20 100%)`,
-                                      color: "var(--text-primary)",
-                                      border: `1.5px solid ${color}50`,
+                                      background: "var(--bg-card)",
+                                      border: `1.5px solid ${color}70`,
                                     }}
                                   >
-                                    <Swords size={10} className="animate-swords-clash" style={{ color }} />
-                                    <span>VS</span>
+                                    <span className="animate-swords-clash inline-block origin-center">
+                                      <Swords size={13} className="text-amber-500 fill-amber-500/20" />
+                                    </span>
+                                    <span className="tracking-widest font-black text-[10px]" style={{ color: "var(--text-heading)" }}>
+                                      VS
+                                    </span>
                                   </div>
                                   <div className="flex-1 flex items-center gap-1.5 min-w-0 justify-end">
                                     {s2 >= 2 && (
@@ -937,19 +943,37 @@ export default function SessionPage() {
                     return (
                       <div
                         key={entry.id}
-                        className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-card-hover)] min-w-0 group"
+                        className={`flex items-center gap-3 px-4 py-3 transition-all min-w-0 group ${
+                          streak >= 2
+                            ? "fiery-streak-card rounded-2xl mx-2 my-1.5"
+                            : "hover:bg-[var(--bg-card-hover)]"
+                        }`}
                         style={{
-                          background: isNextUp ? `${color}05` : undefined,
+                          background: streak >= 2 ? undefined : isNextUp ? `${color}05` : undefined,
                         }}
                       >
                         {/* Avatar with queue number */}
                         <div className="relative flex-shrink-0">
-                          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shadow-sm"
-                            style={{ background: color + "20", color }}>
+                          <div
+                            className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shadow-sm transition-all ${
+                              streak >= 2 ? "ring-2 ring-amber-500 shadow-md scale-105" : ""
+                            }`}
+                            style={{
+                              background: streak >= 2 ? "linear-gradient(135deg, #ef4444 0%, #f59e0b 100%)" : color + "20",
+                              color: streak >= 2 ? "#ffffff" : color,
+                            }}
+                          >
                             {initials}
                           </div>
-                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black"
-                            style={{ background: "var(--bg-page)", color: "var(--text-faint)", border: "1px solid var(--border)" }}>
+                          {streak >= 2 && (
+                            <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center animate-flame-flicker">
+                              <Flame size={12} className="fill-orange-500 text-orange-500" />
+                            </div>
+                          )}
+                          <div
+                            className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black"
+                            style={{ background: "var(--bg-page)", color: "var(--text-faint)", border: "1px solid var(--border)" }}
+                          >
                             {idx + 1}
                           </div>
                         </div>
@@ -962,16 +986,16 @@ export default function SessionPage() {
                             </p>
                             {streak >= 2 && (
                               <span
-                                className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0 animate-flame-flicker"
+                                className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full flex-shrink-0 animate-flame-flicker shadow-sm"
                                 style={{
-                                  background: "linear-gradient(135deg, rgba(249,115,22,0.2) 0%, rgba(239,68,68,0.2) 100%)",
-                                  color: "#f97316",
-                                  border: "1px solid rgba(249,115,22,0.35)",
+                                  background: "linear-gradient(135deg, #ef4444 0%, #f97316 50%, #f59e0b 100%)",
+                                  color: "#ffffff",
+                                  boxShadow: "0 2px 10px rgba(239, 68, 68, 0.45)",
                                 }}
-                                title={`${streak} match win streak!`}
+                                title={`${streak} consecutive match wins!`}
                               >
-                                <Flame size={10} className="fill-amber-500 text-amber-500" />
-                                <span>{streak} streak</span>
+                                <Flame size={10} className="fill-white text-white" />
+                                <span className="tracking-wide uppercase">{streak} streak</span>
                               </span>
                             )}
                             {isNextUp && (
@@ -981,8 +1005,8 @@ export default function SessionPage() {
                               </span>
                             )}
                           </div>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold capitalize mt-0.5" style={{ color }}>
-                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold capitalize mt-0.5" style={{ color: streak >= 2 ? "#f97316" : color }}>
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: streak >= 2 ? "#f97316" : color }} />
                             {entry.skill_level.replace(/_/g, " ")}
                           </span>
                         </div>
