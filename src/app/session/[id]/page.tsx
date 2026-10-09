@@ -568,14 +568,14 @@ export default function SessionPage() {
           </div>
 
           {/* Waitlist sidebar */}
-          <div className="w-full lg:w-72 lg:flex-shrink-0">
+          <div className="w-full lg:w-80 lg:flex-shrink-0 lg:sticky lg:top-20 self-start">
             {/* Sidebar header */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>Queue</h2>
                 {waitlist.length > 0 && (
                   <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b" }}>
-                    {waitlist.length}
+                    {waitlist.length} waiting
                   </span>
                 )}
               </div>
@@ -607,52 +607,82 @@ export default function SessionPage() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-3xl overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <div
+                className="rounded-3xl overflow-hidden flex flex-col shadow-sm"
+                style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+              >
                 {/* Queue header row */}
-                <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: "var(--separator)", background: "var(--bg-subtle)" }}>
-                  <Activity size={11} style={{ color: "var(--text-faint)" }} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>Waiting to play</span>
+                <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "var(--separator)", background: "var(--bg-subtle)" }}>
+                  <div className="flex items-center gap-2">
+                    <Activity size={12} style={{ color: "#f59e0b" }} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-primary)" }}>
+                      Waiting to play
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--bg-card)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
+                    {waitlist.length} in line
+                  </span>
                 </div>
-                {waitlist.map((entry, idx) => {
-                  const color = SKILL_COLORS[entry.skill_level] || "#6b7280";
-                  const initials = (entry.player?.name ?? "?").slice(0, 2).toUpperCase();
-                  return (
-                    <div
-                      key={entry.id}
-                      className="flex items-center gap-3 px-4 py-3 transition-all hover:bg-[var(--bg-card-hover)] min-w-0 group"
-                      style={{ borderBottom: idx < waitlist.length - 1 ? "1px solid var(--separator)" : undefined }}
-                    >
-                      {/* Avatar with queue number */}
-                      <div className="relative flex-shrink-0">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black"
-                          style={{ background: color + "20", color }}>
-                          {initials}
-                        </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black"
-                          style={{ background: "var(--bg-page)", color: "var(--text-faint)", border: "1px solid var(--border)" }}>
-                          {idx + 1}
-                        </div>
-                      </div>
-                      {/* Player info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate leading-tight" style={{ color: "var(--text-primary)" }}>{entry.player?.name}</p>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold capitalize mt-0.5" style={{ color }}>
-                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                          {entry.skill_level.replace(/_/g, " ")}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFromWaitlist(entry.id)}
-                        title={`Remove ${entry.player?.name ?? "player"} from queue`}
-                        className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-all opacity-0 group-hover:opacity-100 hover:scale-110 cursor-pointer"
-                        style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}
+
+                {/* Contained scrollable player list */}
+                <div className="max-h-[380px] sm:max-h-[440px] overflow-y-auto overscroll-contain divide-y divide-[var(--separator)]">
+                  {waitlist.map((entry, idx) => {
+                    const color = SKILL_COLORS[entry.skill_level] || "#6b7280";
+                    const initials = (entry.player?.name ?? "?").slice(0, 2).toUpperCase();
+                    const isNextUp = idx < (gameMode === "doubles" ? 4 : 2);
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-card-hover)] min-w-0 group"
+                        style={{
+                          background: isNextUp ? `${color}05` : undefined,
+                        }}
                       >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  );
-                })}
+                        {/* Avatar with queue number */}
+                        <div className="relative flex-shrink-0">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shadow-sm"
+                            style={{ background: color + "20", color }}>
+                            {initials}
+                          </div>
+                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black"
+                            style={{ background: "var(--bg-page)", color: "var(--text-faint)", border: "1px solid var(--border)" }}>
+                            {idx + 1}
+                          </div>
+                        </div>
+
+                        {/* Player info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-bold truncate leading-tight" style={{ color: "var(--text-primary)" }}>
+                              {entry.player?.name}
+                            </p>
+                            {isNextUp && (
+                              <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase flex-shrink-0"
+                                style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                                Next
+                              </span>
+                            )}
+                          </div>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold capitalize mt-0.5" style={{ color }}>
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                            {entry.skill_level.replace(/_/g, " ")}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeFromWaitlist(entry.id)}
+                          title={`Remove ${entry.player?.name ?? "player"} from queue`}
+                          className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-all opacity-0 group-hover:opacity-100 hover:scale-110 cursor-pointer"
+                          style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

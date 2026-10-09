@@ -392,13 +392,20 @@ input[type="number"] {
   pointer-events: none;
 }
 
-/* ─── Toast slide-in / slide-out ────────────────────────────────────────── */
-@keyframes toastEnter {
-  from { opacity: 0; transform: translateX(calc(100% + 1rem)); }
-  to   { opacity: 1; transform: translateX(0); }
+/* ─── QR Mockup Scanning Animation ────────────────────────────────────── */
+@keyframes scanLine {
+  0%   { top: 6%; opacity: 0.3; }
+  50%  { top: 88%; opacity: 1; }
+  100% { top: 6%; opacity: 0.3; }
 }
-@keyframes toastLeave {
-  from { opacity: 1; transform: translateX(0); max-height: 120px; }
-  to   { opacity: 0; transform: translateX(calc(100% + 1rem)); max-height: 0; }
+
+@keyframes qrPixelPulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1.1); }
 }
+
+.animate-scan-line {
+  animation: scanLine 2.6s ease-in-out infinite;
+}
+
 
