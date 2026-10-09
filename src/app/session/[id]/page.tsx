@@ -286,7 +286,7 @@ export default function SessionPage() {
   );
 
   return (
-    <main className="min-h-screen" style={{ background: "var(--bg-page)" }}>
+    <main className="min-h-screen max-w-5xl mx-auto" style={{ background: "var(--bg-page)" }}>
 
       {/* ── Sticky top nav bar ── */}
       <header
@@ -300,28 +300,32 @@ export default function SessionPage() {
         {/* Left cluster */}
         <div className="flex items-center gap-2 min-w-0">
           <BackButton href="/" label="Home" />
-          <div className="w-px h-4 flex-shrink-0" style={{ background: "var(--border)" }} />
-          <h1 className="text-sm sm:text-base font-black tracking-tight flex-shrink-0" style={{ color: "var(--text-heading)" }}>
-            Session Dashboard
-          </h1>
-          <span
-            className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-            style={{
-              background: gameMode === "doubles" ? "rgba(124,58,237,0.12)" : "rgba(6,182,212,0.12)",
-              color:      gameMode === "doubles" ? "#a78bfa" : "#06b6d4",
-            }}
-          >
-            {gameMode === "doubles" ? <Users size={10} /> : <User size={10} />}
-            {gameMode === "doubles" ? "2v2 Doubles" : "1v1 Singles"}
-          </span>
-          <button
-            onClick={copyId}
-            className="flex items-center gap-1 text-xs font-mono transition-all hover:opacity-80 hidden sm:flex"
-            style={{ color: copied ? "var(--success-text)" : "var(--text-faint)" }}
-          >
-            {copied ? <CheckCheck size={12} /> : <Copy size={12} />}
-            <span>{sessionId.slice(0, 12)}…</span>
-          </button>
+          <div className="hidden sm:block w-px h-5 flex-shrink-0" style={{ background: "var(--border)" }} />
+          <div className="hidden sm:block min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-black tracking-tight leading-none" style={{ color: "var(--text-heading)" }}>
+                Session Dashboard
+              </h1>
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                style={{
+                  background: gameMode === "doubles" ? "rgba(124,58,237,0.12)" : "rgba(6,182,212,0.12)",
+                  color:      gameMode === "doubles" ? "#a78bfa" : "#06b6d4",
+                }}
+              >
+                {gameMode === "doubles" ? <Users size={10} /> : <User size={10} />}
+                {gameMode === "doubles" ? "2v2 Doubles" : "1v1 Singles"}
+              </span>
+            </div>
+            <button
+              onClick={copyId}
+              className="flex items-center gap-1 text-[11px] font-mono mt-0.5 transition-all hover:opacity-80"
+              style={{ color: copied ? "var(--success-text)" : "var(--text-faint)" }}
+            >
+              {copied ? <CheckCheck size={11} /> : <Copy size={11} />}
+              <span className="truncate max-w-[140px]">{sessionId.slice(0, 16)}…</span>
+            </button>
+          </div>
         </div>
 
         {/* Right cluster */}

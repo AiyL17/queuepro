@@ -372,3 +372,13 @@ input[type="number"] {
   pointer-events: none;
 }
 
+/* ─── Toast slide-in / slide-out ────────────────────────────────────────── */
+@keyframes toastEnter {
+  from { opacity: 0; transform: translateX(calc(100% + 1rem)); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastLeave {
+  from { opacity: 1; transform: translateX(0); max-height: 120px; }
+  to   { opacity: 0; transform: translateX(calc(100% + 1rem)); max-height: 0; }
+}
+
