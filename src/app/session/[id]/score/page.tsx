@@ -5,12 +5,21 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Court, Player, GameMode } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Check, Loader2, Users, User, Trophy, Plus, Minus } from "lucide-react";
+import { Loader2, Users, User, Trophy, Plus, Minus, Check } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
+import { useToast } from "@/lib/toast";
 
 interface PlayingPlayer extends Player {
   queueEntryId: string;
 }
+
+const SKILL_COLORS: Record<string, string> = {
+  beginner:          "#3b82f6",
+  advanced_beginner: "#8b5cf6",
+  novice:            "#f59e0b",
+  intermediate:      "#f97316",
+  advanced:          "#ef4444",
+};
 
 export default function ScorePage() {
   const params       = useParams();
@@ -27,8 +36,7 @@ export default function ScorePage() {
   const [team2Score, setTeam2Score] = useState("");
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
-  const [error, setError]           = useState("");
-  const [success, setSuccess]       = useState("");
+  const toast = useToast();
 
   const fetchData = useCallback(async () => {
     if (!preselectedCourtId) { setLoading(false); return; }
@@ -62,14 +70,14 @@ export default function ScorePage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSubmit = async () => {
-    if (!court) { setError("No court selected"); return; }
+    if (!court) { toast.error("No court selected"); return; }
     const s1 = parseInt(team1Score), s2 = parseInt(team2Score);
-    if (isNaN(s1) || isNaN(s2) || s1 < 0 || s2 < 0) { setError("Enter valid scores"); return; }
+    if (isNaN(s1) || isNaN(s2) || s1 < 0 || s2 < 0) { toast.error("Enter valid scores"); return; }
 
     const allPlayerIds = [...team1, ...team2].map((p) => p.id);
-    if (allPlayerIds.length === 0) { setError("No players found for this court"); return; }
+    if (allPlayerIds.length === 0) { toast.error("No players found for this court"); return; }
 
-    setSaving(true); setError("");
+    setSaving(true);
     try {
       const supabase = createClient();
 
@@ -132,10 +140,10 @@ export default function ScorePage() {
         .eq("session_id", sessionId)
         .eq("status", "playing");
 
-      setSuccess(`Saved! ${s1}–${s2}`);
+      toast.success(`Score saved — ${s1}–${s2}`);
       setTimeout(() => router.push(`/session/${sessionId}`), 1500);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to save score");
+      toast.error(err instanceof Error ? err.message : "Failed to save score");
     } finally { setSaving(false); }
   };
 
@@ -157,36 +165,35 @@ export default function ScorePage() {
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-3xl mx-auto" style={{ background: "var(--bg-page)" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <BackButton fallback={`/session/${sessionId}`} />
+    <main className="min-h-screen max-w-3xl mx-auto" style={{ background: "var(--bg-page)" }}>
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 sm:px-6 py-3"
+        style={{background: "var(--bg-page)",
+          borderBottom: "1px solid var(--border-subtle)",
+          backdropFilter: "blur(12px)",}}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <BackButton fallback={`/session/${sessionId}`} />
+          <div className="w-px h-4 flex-shrink-0" style={{background: "var(--border)"}} />
+          <div>
+            <h1 className="text-sm font-black tracking-tight" style={{color: "var(--text-heading)"}}>
+              {court?.name ?? "Score Entry"}
+            </h1>
+            <p className="text-xs capitalize" style={{color: "var(--text-muted)"}}>
+              {gameMode} · {court?.assigned_skill_level.replace(/_/g, " ") ?? ""}
+            </p>
+          </div>
+        </div>
         <ThemeToggle />
-      </div>
+      </header>
 
+      <div className="px-4 sm:px-6 pt-5 pb-6">
       {loading ? (
         <div className="flex items-center justify-center py-24">
           <Loader2 size={28} className="animate-spin" style={{ color: "var(--text-faint)" }} />
         </div>
       ) : (
         <>
-          {/* Court info */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl font-black tracking-tight" style={{ color: "var(--text-heading)" }}>
-                {court?.name}
-              </h1>
-              <span
-                className="text-xs px-2 py-0.5 rounded-full font-semibold capitalize"
-                style={{ background: "var(--court-occupied-bg)", color: "var(--court-occupied-text)" }}
-              >
-                In Play
-              </span>
-            </div>
-            <p className="text-sm capitalize" style={{ color: "var(--text-muted)" }}>
-              {gameMode} · {court?.assigned_skill_level.replace(/_/g, " ")}
-            </p>
-          </div>
 
           {/* Score inputs */}
           <div
@@ -344,10 +351,17 @@ export default function ScorePage() {
                   {team1.length > 0 ? team1.map((p) => (
                     <div
                       key={p.id}
-                      className="px-3 py-2 rounded-xl text-sm font-medium"
-                      style={{ background: "var(--bg-subtle)", color: "var(--text-primary)" }}
+                      className="px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between gap-2"
+                      style={{background: "var(--bg-subtle)", color: "var(--text-primary)"}}
                     >
-                      {p.name}
+                      <span>{p.name}</span>
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0"
+                        style={{background: (SKILL_COLORS[p.skill_level] ?? "#6b7280") + "20",
+                          color: SKILL_COLORS[p.skill_level] ?? "#6b7280",}}
+                      >
+                        {(p.skill_level ?? "").replace(/_/g, " ")}
+                      </span>
                     </div>
                   )) : (
                     <div
@@ -374,10 +388,17 @@ export default function ScorePage() {
                   {team2.length > 0 ? team2.map((p) => (
                     <div
                       key={p.id}
-                      className="px-3 py-2 rounded-xl text-sm font-medium"
-                      style={{ background: "var(--bg-subtle)", color: "var(--text-primary)" }}
+                      className="px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between gap-2"
+                      style={{background: "var(--bg-subtle)", color: "var(--text-primary)"}}
                     >
-                      {p.name}
+                      <span>{p.name}</span>
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0"
+                        style={{background: (SKILL_COLORS[p.skill_level] ?? "#6b7280") + "20",
+                          color: SKILL_COLORS[p.skill_level] ?? "#6b7280",}}
+                      >
+                        {(p.skill_level ?? "").replace(/_/g, " ")}
+                      </span>
                     </div>
                   )) : (
                     <div
@@ -393,26 +414,10 @@ export default function ScorePage() {
           </div>
 
           {/* Error / success */}
-          {error && (
-            <div
-              className="rounded-2xl px-4 py-3 mb-4 text-sm"
-              style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}
-            >
-              {error}
-            </div>
-          )}
-          {success && (
-            <div
-              className="rounded-2xl px-4 py-3 mb-4 text-sm flex items-center gap-2"
-              style={{ background: "var(--success-bg)", color: "var(--success-text)", border: "1px solid var(--success-border)" }}
-            >
-              <Check size={15} /> {success}
-            </div>
-          )}
 
           <button
             onClick={handleSubmit}
-            disabled={saving || !!success}
+            disabled={saving}
             className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2"
             style={{
               background: "linear-gradient(135deg, #d97706, #b45309)",
@@ -422,11 +427,12 @@ export default function ScorePage() {
             {saving ? (
               <><Loader2 size={18} className="animate-spin" /> Saving...</>
             ) : (
-              <>Save Score</>
+              <><Check size={18} /> Save Score</>
             )}
           </button>
         </>
       )}
+      </div>
     </main>
   );
 }
