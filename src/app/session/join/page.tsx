@@ -6,16 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArrowRight, Hash, Loader2 } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
+import { useToast } from "@/lib/toast";
 
 export default function JoinSessionPage() {
   const router = useRouter();
+  const toast  = useToast();
   const [sessionId, setSessionId] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleJoin = async () => {
-    if (!sessionId.trim()) { setError("Please enter a session ID"); return; }
-    setLoading(true); setError("");
+    if (!sessionId.trim()) { toast.error("Please enter a session ID"); return; }
+    setLoading(true);
     try {
       const supabase = createClient();
       const { data, error: fetchError } = await supabase
@@ -23,11 +24,11 @@ export default function JoinSessionPage() {
         .select("id, status")
         .eq("id", sessionId.trim())
         .single();
-      if (fetchError || !data) { setError("Session not found. Check the ID and try again."); return; }
-      if (data.status === "ended") { setError("This session has already ended."); return; }
+      if (fetchError || !data) { toast.error("Session not found. Check the ID and try again."); return; }
+      if (data.status === "ended") { toast.error("This session has already ended."); return; }
       router.push(`/session/${data.id}`);
     } catch {
-      setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -49,13 +50,22 @@ export default function JoinSessionPage() {
 
       <div className="relative z-10 max-w-md w-full">
         {/* Top bar */}
-        <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center justify-between mb-8">
           <BackButton fallback="/" />
           <ThemeToggle />
         </div>
 
         {/* Heading */}
         <div className="mb-8">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4"
+            style={{background: "var(--gradient-cta)"}}
+          >
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M8 12h8M12 8v8" />
+            </svg>
+          </div>
           <h1
             className="text-3xl font-black tracking-tight mb-2"
             style={{ color: "var(--text-heading)" }}
@@ -89,20 +99,6 @@ export default function JoinSessionPage() {
           </div>
         </div>
 
-        {/* Error */}
-        {error && (
-          <div
-            className="rounded-2xl px-4 py-3 mb-4 text-sm"
-            style={{
-              background: "var(--error-bg)",
-              color: "var(--error-text)",
-              border: "1px solid var(--error-border)",
-            }}
-          >
-            {error}
-          </div>
-        )}
-
         {/* CTA */}
         <button
           onClick={handleJoin}
@@ -122,6 +118,17 @@ export default function JoinSessionPage() {
             </>
           )}
         </button>
+
+        <div className="mt-5 text-center">
+          <span className="text-sm" style={{color: "var(--text-faint)"}}>or </span>
+          <a
+            href="/session/new"
+            className="text-sm font-semibold hover:underline"
+            style={{color: "var(--text-faint)"}}
+          >
+            Start new session instead →
+          </a>
+        </div>
       </div>
     </main>
   );
