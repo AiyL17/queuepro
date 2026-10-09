@@ -4,16 +4,19 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 interface Props {
+  href?: string;     // when set, navigates directly instead of using router.back()
   fallback?: string; // explicit route to go to if needed
   label?: string;
 }
 
-export function BackButton({ fallback, label = "Back" }: Props) {
+export function BackButton({ href, fallback, label = "Back" }: Props) {
   const router = useRouter();
 
   const handleClick = () => {
-    // If there's history to go back to, use it.
-    // Otherwise fall back to the explicit route.
+    if (href) {
+      router.push(href);
+      return;
+    }
     if (window.history.length > 1) {
       router.back();
     } else if (fallback) {

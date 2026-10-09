@@ -136,6 +136,7 @@ export default function NewSessionPage() {
         }
       }
 
+      localStorage.setItem("qp-last-session", session.id);
       router.push(`/session/${session.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create session");

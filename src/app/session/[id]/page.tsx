@@ -41,6 +41,8 @@ export default function SessionPage() {
   const [team2Score, setTeam2Score]   = useState("");
   const [saving, setSaving]           = useState(false);
   const [saveError, setSaveError]     = useState("");
+  const [endConfirm, setEndConfirm]   = useState(false);
+  const [ending, setEnding]           = useState(false);
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -260,6 +262,19 @@ export default function SessionPage() {
     });
   };
 
+  const handleEndSession = async () => {
+    setEnding(true);
+    try {
+      const supabase = createClient();
+      await supabase.from("sessions").update({ status: "ended" }).eq("id", sessionId);
+      localStorage.removeItem("qp-last-session");
+      router.push("/");
+    } catch {
+      setEnding(false);
+      setEndConfirm(false);
+    }
+  };
+
   const s1num = parseInt(team1Score) || 0;
   const s2num = parseInt(team2Score) || 0;
 
@@ -301,7 +316,7 @@ export default function SessionPage() {
             </button>
           </div>
           <div className="flex gap-2 items-center flex-shrink-0">
-            <BackButton fallback="/" label="Home" />
+            <BackButton href="/" label="Home" />
             <button
               onClick={() => router.push(`/session/${sessionId}/leaderboard`)}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
@@ -476,6 +491,50 @@ export default function SessionPage() {
           </div>
         </div>
 
+      </div>
+
+      {/* ── End Session ── */}
+      <div
+        className="max-w-5xl mx-auto mt-10 pb-6 flex justify-end px-4 sm:px-6"
+      >
+        {!endConfirm ? (
+          <button
+            onClick={() => setEndConfirm(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all hover:opacity-90"
+            style={{background: "var(--error-bg)",
+              color: "var(--error-text)",
+              border: "1px solid var(--error-border)",}}
+          >
+            End Session
+          </button>
+        ) : (
+          <div
+            className="flex items-center gap-3 px-4 py-2.5 rounded-2xl"
+            style={{background: "var(--error-bg)",
+              border: "1px solid var(--error-border)",}}
+          >
+            <span className="text-sm font-semibold" style={{color: "var(--error-text)"}}>
+              End this session?
+            </span>
+            <button
+              onClick={() => setEndConfirm(false)}
+              disabled={ending}
+              className="text-xs px-3 py-1.5 rounded-full transition-all hover:opacity-80 disabled:opacity-40"
+              style={{background: "var(--bg-subtle)", color: "var(--text-muted)"}}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleEndSession}
+              disabled={ending}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-bold transition-all hover:opacity-90 disabled:opacity-50"
+              style={{background: "var(--error-text)",
+                color: "#fff",}}
+            >
+              {ending ? <><Loader2 size={13} className="animate-spin" /> Ending...</> : "Confirm"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Score Modal ── */}

@@ -1,8 +1,39 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Zap, Link2, Target, Trophy, Users } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+
+interface ActiveSession { id: string; name: string | null; status: string; created_at: string; }
 
 export default function Home() {
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+
+  useEffect(() => {
+    const id = localStorage.getItem("qp-last-session");
+    if (!id) return;
+    const supabase = createClient();
+    supabase
+      .from("sessions")
+      .select("id, name, status, created_at")
+      .eq("id", id)
+      .single()
+      .then(({ data }) => {
+        if (data && data.status === "active") {
+          setActiveSession(data as ActiveSession);
+        } else {
+          localStorage.removeItem("qp-last-session");
+        }
+      });
+  }, []);
+
+  const dismissSession = () => {
+    localStorage.removeItem("qp-last-session");
+    setActiveSession(null);
+  };
+
   return (
     <main
       className="min-h-screen flex flex-col relative overflow-hidden"
@@ -118,6 +149,51 @@ export default function Home() {
           <span className="w-1 h-1 rounded-full" style={{ background: "var(--text-faintest)" }} />
           <span>Works on any device</span>
         </div>
+
+        {/* Continue Session card */}
+        {activeSession && (
+          <div
+            className="feature-card p-5 text-left w-full max-w-3xl mb-6 animate-hero delay-500"
+            style={{borderColor: "rgba(34,197,94,0.4)", boxShadow: "0 4px 20px rgba(34,197,94,0.12)"}}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                    style={{background: "rgba(34,197,94,0.15)",
+                      color: "#4ade80",
+                      border: "1px solid rgba(34,197,94,0.3)",}}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    Active
+                  </span>
+                </div>
+                <p className="text-sm font-bold mb-0.5" style={{color: "var(--text-heading)"}}>
+                  {activeSession.name ?? "Session in progress"}
+                </p>
+                <p className="text-xs" style={{color: "var(--text-muted)"}}>
+                  Started {new Date(activeSession.created_at).toLocaleString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={dismissSession}
+                  className="text-xs px-2.5 py-1.5 rounded-full transition-all hover:opacity-80"
+                  style={{color: "var(--text-faint)", background: "var(--bg-subtle)"}}
+                >
+                  Dismiss
+                </button>
+                <Link
+                  href={`/session/${activeSession.id}`}
+                  className="btn-primary flex items-center justify-center gap-1.5 px-4 py-2 text-sm"
+                >
+                  Continue →
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Feature cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-3xl">
