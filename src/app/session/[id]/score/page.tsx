@@ -226,7 +226,7 @@ export default function ScorePage() {
                     type="button"
                     onClick={() => setTeam1Score(String(Math.max(0, s1num - 1)))}
                     className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
                   >
                     <Minus size={16} />
                   </button>
@@ -246,7 +246,7 @@ export default function ScorePage() {
                     type="button"
                     onClick={() => setTeam1Score(String(s1num + 1))}
                     className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
                   >
                     <Plus size={16} />
                   </button>
@@ -292,7 +292,7 @@ export default function ScorePage() {
                     type="button"
                     onClick={() => setTeam2Score(String(Math.max(0, s2num - 1)))}
                     className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
                   >
                     <Minus size={16} />
                   </button>
@@ -312,7 +312,7 @@ export default function ScorePage() {
                     type="button"
                     onClick={() => setTeam2Score(String(s2num + 1))}
                     className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
                   >
                     <Plus size={16} />
                   </button>

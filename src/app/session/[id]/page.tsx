@@ -669,7 +669,7 @@ export default function SessionPage() {
                     type="button"
                     onClick={() => setTeam1Score(String(Math.max(0, s1num - 1)))}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer flex-shrink-0"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
                   >
                     <Minus size={14} />
                   </button>
@@ -689,7 +689,7 @@ export default function SessionPage() {
                     type="button"
                     onClick={() => setTeam1Score(String(s1num + 1))}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer flex-shrink-0"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
                   >
                     <Plus size={14} />
                   </button>
@@ -740,7 +740,7 @@ export default function SessionPage() {
                     type="button"
                     onClick={() => setTeam2Score(String(Math.max(0, s2num - 1)))}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer flex-shrink-0"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
                   >
                     <Minus size={14} />
                   </button>
@@ -760,7 +760,7 @@ export default function SessionPage() {
                     type="button"
                     onClick={() => setTeam2Score(String(s2num + 1))}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer flex-shrink-0"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
                   >
                     <Plus size={14} />
                   </button>
