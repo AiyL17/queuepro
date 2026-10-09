@@ -31,7 +31,16 @@ export default function DisplayPage() {
       supabase.from("courts").select("*").eq("session_id", sessionId).order("name"),
       supabase.from("player_session_scores").select("*, player:players(*)").eq("session_id", sessionId).order("total_score", { ascending: false }),
     ]);
-    setQueue((qd as QueueEntry[]) || []);
+    const seen = new Set<string>();
+    const uniqueQueue: QueueEntry[] = [];
+    for (const q of (qd as QueueEntry[]) || []) {
+      if (q.player && !seen.has(q.player_id)) {
+        seen.add(q.player_id);
+        uniqueQueue.push(q);
+      }
+    }
+
+    setQueue(uniqueQueue);
     setCourts((cd as Court[]) || []);
     setScores((sd as PlayerSessionScore[]) || []);
   }, [sessionId]);

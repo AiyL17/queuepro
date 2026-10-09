@@ -161,15 +161,9 @@ export default function ScorePage() {
         }
       }
 
-      // Free court + mark players done
-      await supabase.from("courts").update({ status: "available" }).eq("id", court.id);
-      await supabase.from("queue_entries")
-        .update({ status: "done" })
-        .in("player_id", allPlayerIds)
-        .eq("session_id", sessionId)
-        .eq("status", "playing");
-
-      // Requeue finished players / promote waitlisted players.
+      // Requeue finished players / promote waitlisted players atomically.
+      // (The RPC marks previous playing entries as done, inserts waiting entries,
+      // and either occupies the court with next waiting players or marks it available).
       await requeueAfterMatch(
         sessionId,
         gameMode,
@@ -182,10 +176,6 @@ export default function ScorePage() {
       toast.success(`Score saved — ${s1}–${s2}`);
       setTimeout(() => router.push(`/session/${sessionId}`), 1500);
     } catch (err: unknown) {
-      // If requeueAfterMatch threw after players were marked done, they may be
-      // stranded as "done". The recovery pass inside requeueAfterMatch will
-      // detect and rescue them on the next call. Surface the error so the
-      // operator can retry (re-tapping Save Score re-drives the same flow).
       toast.error(
         (err instanceof Error ? err.message : "Failed to save score") +
           " — tap Save Score again to retry."

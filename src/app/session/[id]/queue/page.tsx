@@ -47,7 +47,17 @@ export default function QueuePage() {
       supabase.from("courts").select("*").eq("session_id", sessionId).order("name"),
       supabase.from("sessions").select("game_mode").eq("id", sessionId).single(),
     ]);
-    setQueue((qd as QueueEntry[]) || []);
+    // Deduplicate entries by player_id
+    const seen = new Set<string>();
+    const uniqueQueue: QueueEntry[] = [];
+    for (const q of (qd as QueueEntry[]) || []) {
+      if (q.player && !seen.has(q.player_id)) {
+        seen.add(q.player_id);
+        uniqueQueue.push(q);
+      }
+    }
+
+    setQueue(uniqueQueue);
     setCourts((cd as Court[]) || []);
     if (sd?.game_mode) setGameMode(sd.game_mode as GameMode);
     setLoading(false);

@@ -71,23 +71,42 @@ export default function SessionPage() {
     setGameMode(mode);
 
     const allQueue = (qd ?? []) as QueueEntry[];
+    const needed = mode === "singles" ? 2 : 4;
 
     const courtsWithPlayers: CourtWithPlayers[] = ((cd ?? []) as Court[]).map((court) => {
       const playingEntries = allQueue.filter(
         (q) => q.status === "playing" && q.skill_level === court.assigned_skill_level
       );
-      const playingPlayers = playingEntries
-        .filter((q) => q.player)
+      // Deduplicate by player_id to protect against any duplicate records
+      const seenPlaying = new Set<string>();
+      const uniquePlaying: QueueEntry[] = [];
+      for (const entry of playingEntries) {
+        if (entry.player && !seenPlaying.has(entry.player_id)) {
+          seenPlaying.add(entry.player_id);
+          uniquePlaying.push(entry);
+        }
+      }
+      const playingPlayers = uniquePlaying
+        .slice(0, needed)
         .map((q) => ({ ...(q.player as Player), queueEntryId: q.id }));
       return { ...court, playingPlayers };
     });
 
+    // Deduplicate waitlist by player_id
+    const seenWaitlist = new Set<string>();
+    const uniqueWaitlist: QueueEntry[] = [];
+    for (const q of allQueue.filter((e) => e.status === "waiting")) {
+      if (q.player && !seenWaitlist.has(q.player_id)) {
+        seenWaitlist.add(q.player_id);
+        uniqueWaitlist.push(q);
+      }
+    }
+
     setCourts(courtsWithPlayers);
-    setWaitlist(allQueue.filter((q) => q.status === "waiting"));
+    setWaitlist(uniqueWaitlist);
     setLoading(false);
 
     // Heal any courts that should be occupied but aren't (e.g. after a page reload).
-    // Fire-and-forget — errors here are non-fatal.
     tryFillCourts(sessionId, mode).catch(() => {});
   }, [sessionId]);
 
@@ -200,16 +219,9 @@ export default function SessionPage() {
         }
       }
 
-      // Free court + mark players done
-      await supabase.from("courts").update({ status: "available" }).eq("id", court.id);
-      await supabase.from("queue_entries").update({ status: "done" })
-        .in("player_id", allPlayers.map((p) => p.id))
-        .eq("session_id", sessionId).eq("status", "playing");
-
-      // Requeue finished players / promote waitlisted players using shared helper.
-      // This queries the DB live (not stale React state) and either:
-      //   a) promotes the first N waitlisted players to the freed court, OR
-      //   b) re-inserts the finished players as "waiting" at the back of the queue.
+      // Requeue finished players / promote waitlisted players atomically.
+      // (The RPC marks previous playing entries as done, inserts waiting entries,
+      // and either occupies the court with next waiting players or marks it available).
       await requeueAfterMatch(
         sessionId,
         gameMode,
@@ -222,10 +234,6 @@ export default function SessionPage() {
       closeModal();
       fetchData();
     } catch (err: unknown) {
-      // If requeueAfterMatch threw after players were marked done, they may be
-      // stranded as "done". The recovery pass inside requeueAfterMatch will
-      // detect and rescue them on the next call. Surface the error so the
-      // operator can retry (re-tapping Save on the same court re-drives the flow).
       toast.error(
         (err instanceof Error ? err.message : "Failed to save") +
           " — tap Save again to retry."

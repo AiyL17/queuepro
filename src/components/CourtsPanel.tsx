@@ -53,10 +53,32 @@ export function CourtsPanel({ sessionId, gameMode, initialCourts }: Props) {
         const playingEntries = allQueue.filter(
           (q) => q.status === "playing" && q.skill_level === court.assigned_skill_level
         );
-        const waitingEntries = allQueue
-          .filter((q) => q.status === "waiting" && q.skill_level === court.assigned_skill_level)
-          .slice(0, playersNeeded);
-        return { ...court, playingEntries, waitingEntries };
+        const seenPlaying = new Set<string>();
+        const uniquePlaying: QueueEntry[] = [];
+        for (const p of playingEntries) {
+          if (p.player && !seenPlaying.has(p.player_id)) {
+            seenPlaying.add(p.player_id);
+            uniquePlaying.push(p);
+          }
+        }
+
+        const waitingEntries = allQueue.filter(
+          (q) => q.status === "waiting" && q.skill_level === court.assigned_skill_level
+        );
+        const seenWaiting = new Set<string>();
+        const uniqueWaiting: QueueEntry[] = [];
+        for (const w of waitingEntries) {
+          if (w.player && !seenWaiting.has(w.player_id)) {
+            seenWaiting.add(w.player_id);
+            uniqueWaiting.push(w);
+          }
+        }
+
+        return {
+          ...court,
+          playingEntries: uniquePlaying.slice(0, playersNeeded),
+          waitingEntries: uniqueWaiting.slice(0, playersNeeded),
+        };
       })
     );
   }, [sessionId, playersNeeded]);
