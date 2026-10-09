@@ -579,4 +579,124 @@ input[type="number"] {
   position: relative;
 }
 
+/* ─── Leaderboard Podium & Cascade Animations ────────────────────────── */
+@keyframes goldShimmerSweep {
+  0%, 15% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  50%, 100% {
+    transform: translateX(350%) skewX(-20deg);
+  }
+}
+
+@keyframes trophyLuminousGlow {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 3px rgba(234, 179, 8, 0.5));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.95)) drop-shadow(0 0 14px rgba(245, 158, 11, 0.6));
+  }
+}
+
+@keyframes flameSoftPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.5));
+  }
+  50% {
+    transform: scale(1.15) translateY(-1px);
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.9));
+  }
+}
+
+@keyframes rowCascadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.champion-gold-card {
+  position: relative !important;
+  overflow: hidden !important;
+  background: linear-gradient(
+    90deg,
+    rgba(234, 179, 8, 0.12) 0%,
+    rgba(234, 179, 8, 0.05) 50%,
+    rgba(234, 179, 8, 0.02) 100%
+  ) !important;
+}
+
+.champion-gold-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 100%
+  );
+  animation: goldShimmerSweep 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+.champion-pair-card {
+  position: relative !important;
+  overflow: hidden !important;
+  background: linear-gradient(
+    90deg,
+    rgba(168, 85, 247, 0.12) 0%,
+    rgba(168, 85, 247, 0.05) 50%,
+    rgba(168, 85, 247, 0.02) 100%
+  ) !important;
+}
+
+.champion-pair-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 100%
+  );
+  animation: goldShimmerSweep 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+.row-streak-highlight {
+  background: rgba(239, 68, 68, 0.04) !important;
+}
+
+.animate-trophy-luminous {
+  display: inline-flex;
+  animation: trophyLuminousGlow 2.5s ease-in-out infinite;
+  will-change: transform, filter;
+}
+
+.animate-flame-soft {
+  display: inline-flex;
+  animation: flameSoftPulse 1.8s ease-in-out infinite;
+  will-change: transform, filter;
+}
+
+.animate-cascade-row {
+  animation: rowCascadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
 

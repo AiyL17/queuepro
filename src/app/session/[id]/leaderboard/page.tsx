@@ -23,9 +23,13 @@ const SKILL_COLORS: Record<SkillLevel, string> = {
 };
 
 function RankBadge({ rank }: { rank: number }) {
-  if (rank === 0) return <Trophy size={18} style={{ color: "#eab308" }} />; // Gold
-  if (rank === 1) return <Medal size={18} style={{ color: "#94a3b8" }} />;  // Silver
-  if (rank === 2) return <Award size={18} style={{ color: "#cd7f32" }} />;  // Bronze
+  if (rank === 0) return (
+    <span className="animate-trophy-luminous flex items-center justify-center">
+      <Trophy size={18} style={{ color: "#eab308" }} />
+    </span>
+  );
+  if (rank === 1) return <Medal size={18} className="drop-shadow-sm" style={{ color: "#94a3b8" }} />;  // Silver
+  if (rank === 2) return <Award size={18} className="drop-shadow-sm" style={{ color: "#cd7f32" }} />;  // Bronze
   return <span className="text-sm font-bold" style={{ color: "var(--text-faint)" }}>{rank + 1}</span>;
 }
 
@@ -301,17 +305,40 @@ export default function LeaderboardPage() {
                       <div className="divide-y divide-[var(--separator)]">
                         {skillScores.map((entry, idx) => {
                           const { streak, wonLast } = getPlayerStreak(entry.player_id);
+                          const isChamp = idx === 0;
+                          const hasStreak = streak >= 2;
                           return (
-                            <div key={entry.player_id}
-                              className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
-                              style={{ background: idx === 0 ? "rgba(234,179,8,0.04)" : undefined }}>
+                            <div
+                              key={`${selectedSkill}-${entry.player_id}`}
+                              className={`flex items-center gap-3 px-5 py-3 transition-all duration-200 hover:translate-x-0.5 animate-cascade-row ${
+                                isChamp
+                                  ? "champion-gold-card"
+                                  : hasStreak
+                                  ? "row-streak-highlight hover:bg-[var(--bg-card-hover)]"
+                                  : "hover:bg-[var(--bg-card-hover)]"
+                              }`}
+                              style={{ animationDelay: `${idx * 45}ms` }}
+                            >
                               <span className="w-8 flex justify-center flex-shrink-0"><RankBadge rank={idx} /></span>
-                              <div className="flex-1 min-w-0 flex items-center gap-2">
-                                <span className={`text-sm font-semibold truncate ${idx === 0 ? "text-amber-400" : ""}`}
-                                  style={{ color: idx === 0 ? undefined : "var(--text-primary)" }}>
+                              <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                                <span className={`text-sm font-semibold truncate ${isChamp ? "text-amber-400 font-bold" : ""}`}
+                                  style={{ color: isChamp ? undefined : "var(--text-primary)" }}>
                                   {entry.player?.name}
                                 </span>
-                                {streak >= 3 && <Flame size={14} className="text-orange-500 animate-pulse flex-shrink-0" />}
+                                {hasStreak && (
+                                  <span
+                                    className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 shadow-sm"
+                                    style={{
+                                      background: "linear-gradient(135deg, #ef4444 0%, #f97316 100%)",
+                                      color: "#ffffff",
+                                      boxShadow: "0 2px 6px rgba(239, 68, 68, 0.35)",
+                                    }}
+                                    title={`${streak} consecutive match wins!`}
+                                  >
+                                    <Flame size={10} className="fill-white text-white animate-flame-soft" />
+                                    <span className="tracking-wide uppercase text-[9px]">{streak} streak</span>
+                                  </span>
+                                )}
                               </div>
                               {wonLast !== null && (
                                 <span className="flex-shrink-0">
@@ -320,7 +347,7 @@ export default function LeaderboardPage() {
                               )}
                               <span className="text-xs font-mono mx-2" style={{ color: "var(--text-muted)" }}>{entry.games_played}g</span>
                               <span className="text-base font-black font-mono"
-                                style={{ color: idx === 0 ? "#eab308" : "var(--score-normal)" }}>{entry.total_score}</span>
+                                style={{ color: isChamp ? "#eab308" : "var(--score-normal)" }}>{entry.total_score}</span>
                             </div>
                           );
                         })}
@@ -339,23 +366,46 @@ export default function LeaderboardPage() {
                       <div className="divide-y divide-[var(--separator)]">
                         {skillPairs.map((pair, idx) => {
                           const streak = getPairStreak(pair.player1_id, pair.player2_id);
+                          const isChamp = idx === 0;
+                          const hasStreak = streak >= 2;
                           return (
-                            <div key={`${pair.player1_id}-${pair.player2_id}`}
-                              className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
-                              style={{ background: idx === 0 ? "rgba(192,132,252,0.06)" : undefined }}>
+                            <div
+                              key={`${selectedSkill}-${pair.player1_id}-${pair.player2_id}`}
+                              className={`flex items-center gap-3 px-5 py-3 transition-all duration-200 hover:translate-x-0.5 animate-cascade-row ${
+                                isChamp
+                                  ? "champion-pair-card"
+                                  : hasStreak
+                                  ? "row-streak-highlight hover:bg-[var(--bg-card-hover)]"
+                                  : "hover:bg-[var(--bg-card-hover)]"
+                              }`}
+                              style={{ animationDelay: `${idx * 45}ms` }}
+                            >
                               <span className="w-8 flex justify-center flex-shrink-0"><RankBadge rank={idx} /></span>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold truncate flex items-center gap-1.5"
-                                  style={{ color: idx === 0 ? "var(--pair-top)" : "var(--text-primary)" }}>
-                                  {pair.player1?.name} &amp; {pair.player2?.name}
-                                  {streak >= 3 && <Flame size={12} className="text-orange-500 animate-pulse flex-shrink-0" />}
+                                <p className="text-sm font-semibold truncate flex items-center gap-1.5 flex-wrap"
+                                  style={{ color: isChamp ? "var(--pair-top)" : "var(--text-primary)" }}>
+                                  <span>{pair.player1?.name} &amp; {pair.player2?.name}</span>
+                                  {hasStreak && (
+                                    <span
+                                      className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 shadow-sm"
+                                      style={{
+                                        background: "linear-gradient(135deg, #ef4444 0%, #f97316 100%)",
+                                        color: "#ffffff",
+                                        boxShadow: "0 2px 6px rgba(239, 68, 68, 0.35)",
+                                      }}
+                                      title={`${streak} consecutive match wins!`}
+                                    >
+                                      <Flame size={10} className="fill-white text-white animate-flame-soft" />
+                                      <span className="tracking-wide uppercase text-[9px]">{streak} streak</span>
+                                    </span>
+                                  )}
                                 </p>
                                 <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
                                   {pair.games_played} game{pair.games_played !== 1 ? "s" : ""} together
                                 </p>
                               </div>
                               <span className="text-base font-black font-mono"
-                                style={{ color: idx === 0 ? "var(--pair-top)" : "var(--pair-normal)" }}>{pair.total_score}</span>
+                                style={{ color: isChamp ? "var(--pair-top)" : "var(--pair-normal)" }}>{pair.total_score}</span>
                             </div>
                           );
                         })}
@@ -387,17 +437,40 @@ export default function LeaderboardPage() {
                       <div className="divide-y divide-[var(--separator)]">
                         {skillScores.map((entry, idx) => {
                           const { streak, wonLast } = getPlayerStreak(entry.player_id);
+                          const isChamp = idx === 0;
+                          const hasStreak = streak >= 2;
                           return (
-                            <div key={entry.player_id}
-                              className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
-                              style={{ background: idx === 0 ? "rgba(234,179,8,0.04)" : undefined }}>
+                            <div
+                              key={`${selectedSkill}-${entry.player_id}`}
+                              className={`flex items-center gap-3 px-5 py-3 transition-all duration-200 hover:translate-x-0.5 animate-cascade-row ${
+                                isChamp
+                                  ? "champion-gold-card"
+                                  : hasStreak
+                                  ? "row-streak-highlight hover:bg-[var(--bg-card-hover)]"
+                                  : "hover:bg-[var(--bg-card-hover)]"
+                              }`}
+                              style={{ animationDelay: `${idx * 45}ms` }}
+                            >
                               <span className="w-8 flex justify-center flex-shrink-0"><RankBadge rank={idx} /></span>
-                              <div className="flex-1 min-w-0 flex items-center gap-2">
-                                <span className={`text-sm font-semibold truncate ${idx === 0 ? "text-amber-400" : ""}`}
-                                  style={{ color: idx === 0 ? undefined : "var(--text-primary)" }}>
+                              <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                                <span className={`text-sm font-semibold truncate ${isChamp ? "text-amber-400 font-bold" : ""}`}
+                                  style={{ color: isChamp ? undefined : "var(--text-primary)" }}>
                                   {entry.player?.name}
                                 </span>
-                                {streak >= 3 && <Flame size={14} className="text-orange-500 animate-pulse flex-shrink-0" />}
+                                {hasStreak && (
+                                  <span
+                                    className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 shadow-sm"
+                                    style={{
+                                      background: "linear-gradient(135deg, #ef4444 0%, #f97316 100%)",
+                                      color: "#ffffff",
+                                      boxShadow: "0 2px 6px rgba(239, 68, 68, 0.35)",
+                                    }}
+                                    title={`${streak} consecutive match wins!`}
+                                  >
+                                    <Flame size={10} className="fill-white text-white animate-flame-soft" />
+                                    <span className="tracking-wide uppercase text-[9px]">{streak} streak</span>
+                                  </span>
+                                )}
                               </div>
                               {wonLast !== null && (
                                 <span className="flex-shrink-0">
@@ -406,7 +479,7 @@ export default function LeaderboardPage() {
                               )}
                               <span className="text-xs font-mono mx-2" style={{ color: "var(--text-muted)" }}>{entry.games_played}g</span>
                               <span className="text-base font-black font-mono"
-                                style={{ color: idx === 0 ? "#eab308" : "var(--score-normal)" }}>{entry.total_score}</span>
+                                style={{ color: isChamp ? "#eab308" : "var(--score-normal)" }}>{entry.total_score}</span>
                             </div>
                           );
                         })}
@@ -432,23 +505,46 @@ export default function LeaderboardPage() {
                       <div className="divide-y divide-[var(--separator)]">
                         {skillPairs.map((pair, idx) => {
                           const streak = getPairStreak(pair.player1_id, pair.player2_id);
+                          const isChamp = idx === 0;
+                          const hasStreak = streak >= 2;
                           return (
-                            <div key={`${pair.player1_id}-${pair.player2_id}`}
-                              className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
-                              style={{ background: idx === 0 ? "rgba(192,132,252,0.06)" : undefined }}>
+                            <div
+                              key={`${selectedSkill}-${pair.player1_id}-${pair.player2_id}`}
+                              className={`flex items-center gap-3 px-5 py-3 transition-all duration-200 hover:translate-x-0.5 animate-cascade-row ${
+                                isChamp
+                                  ? "champion-pair-card"
+                                  : hasStreak
+                                  ? "row-streak-highlight hover:bg-[var(--bg-card-hover)]"
+                                  : "hover:bg-[var(--bg-card-hover)]"
+                              }`}
+                              style={{ animationDelay: `${idx * 45}ms` }}
+                            >
                               <span className="w-8 flex justify-center flex-shrink-0"><RankBadge rank={idx} /></span>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold truncate flex items-center gap-1.5"
-                                  style={{ color: idx === 0 ? "var(--pair-top)" : "var(--text-primary)" }}>
-                                  {pair.player1?.name} &amp; {pair.player2?.name}
-                                  {streak >= 3 && <Flame size={12} className="text-orange-500 animate-pulse flex-shrink-0" />}
+                                <p className="text-sm font-semibold truncate flex items-center gap-1.5 flex-wrap"
+                                  style={{ color: isChamp ? "var(--pair-top)" : "var(--text-primary)" }}>
+                                  <span>{pair.player1?.name} &amp; {pair.player2?.name}</span>
+                                  {hasStreak && (
+                                    <span
+                                      className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 shadow-sm"
+                                      style={{
+                                        background: "linear-gradient(135deg, #ef4444 0%, #f97316 100%)",
+                                        color: "#ffffff",
+                                        boxShadow: "0 2px 6px rgba(239, 68, 68, 0.35)",
+                                      }}
+                                      title={`${streak} consecutive match wins!`}
+                                    >
+                                      <Flame size={10} className="fill-white text-white animate-flame-soft" />
+                                      <span className="tracking-wide uppercase text-[9px]">{streak} streak</span>
+                                    </span>
+                                  )}
                                 </p>
                                 <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
                                   {pair.games_played} game{pair.games_played !== 1 ? "s" : ""} together
                                 </p>
                               </div>
                               <span className="text-base font-black font-mono"
-                                style={{ color: idx === 0 ? "var(--pair-top)" : "var(--pair-normal)" }}>{pair.total_score}</span>
+                                style={{ color: isChamp ? "var(--pair-top)" : "var(--pair-normal)" }}>{pair.total_score}</span>
                             </div>
                           );
                         })}
