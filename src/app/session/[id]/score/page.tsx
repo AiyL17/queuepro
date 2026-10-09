@@ -43,19 +43,25 @@ export default function ScorePage() {
     if (!preselectedCourtId) { setLoading(false); return; }
     const supabase = createClient();
 
-    const [{ data: courtData }, { data: sessionData }, { data: queueData }] = await Promise.all([
+    // Round 1: fetch court and session in parallel (queue needs court.assigned_skill_level)
+    const [{ data: courtData }, { data: sessionData }] = await Promise.all([
       supabase.from("courts").select("*").eq("id", preselectedCourtId).single(),
       supabase.from("sessions").select("game_mode").eq("id", sessionId).single(),
-      supabase
-        .from("queue_entries")
-        .select("*, player:players(*)")
-        .eq("session_id", sessionId)
-        .eq("status", "playing"),
     ]);
 
     const mode = (sessionData?.game_mode ?? "doubles") as GameMode;
+    const typedCourt = courtData as Court;
     setGameMode(mode);
-    setCourt(courtData as Court);
+    setCourt(typedCourt);
+
+    // Round 2: fetch playing entries scoped to this court's skill level
+    // (avoids picking up players from other courts in a multi-court session)
+    const { data: queueData } = await supabase
+      .from("queue_entries")
+      .select("*, player:players(*)")
+      .eq("session_id", sessionId)
+      .eq("status", "playing")
+      .eq("skill_level", typedCourt?.assigned_skill_level ?? "");
 
     // Players currently playing — split evenly into two sides by join order
     const playing: PlayingPlayer[] = ((queueData ?? []) as Array<{ id: string; player: Player }>)
