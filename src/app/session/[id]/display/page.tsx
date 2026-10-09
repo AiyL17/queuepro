@@ -102,68 +102,66 @@ export default function DisplayPage() {
       {/* Courts row — auto-responsive grid */}
       {courts.length > 0 && (
         <div className="pt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-          {courts.map((court) => (
-            <div
-              key={court.id}
-              className="rounded-2xl p-3 text-center relative overflow-hidden"
-              style={{
-                background: "var(--bg-card)",
-                border: `1px solid ${court.status === "available" ? "#16a34a40" : "#ef444440"}`,
-              }}
-            >
+          {courts.map((court) => {
+            const color = SKILL_COLORS[court.assigned_skill_level as SkillLevel] || "#8b5cf6";
+            const isOccupied = court.status === "occupied";
+            return (
               <div
-                className="absolute inset-0 opacity-5"
-                style={{ background: court.status === "available" ? "#16a34a" : "#ef4444" }}
-              />
-              <p className="font-bold text-sm relative" style={{ color: "var(--text-primary)" }}>
-                {court.name}
-              </p>
-              <p
-                className="text-xs relative capitalize mt-0.5"
-                style={{ color: SKILL_COLORS[court.assigned_skill_level as SkillLevel] || "var(--text-muted)" }}
+                key={court.id}
+                className="rounded-3xl p-3.5 text-center relative overflow-hidden transition-all duration-300"
+                style={{
+                  background: isOccupied
+                    ? `linear-gradient(145deg, var(--bg-card) 0%, ${color}12 100%)`
+                    : "var(--bg-card)",
+                  border: `1.5px solid ${isOccupied ? color + "50" : "var(--border)"}`,
+                  boxShadow: isOccupied ? `0 4px 20px ${color}15` : "none",
+                }}
               >
-                {court.assigned_skill_level.replace(/_/g, " ")}
-              </p>
-              <div className="flex items-center justify-center gap-1 mt-2 relative">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-bold text-sm truncate" style={{ color: "var(--text-heading)" }}>
+                    {court.name}
+                  </p>
+                  <span
+                    className={`w-2 h-2 rounded-full ${isOccupied ? "animate-pulse" : ""}`}
+                    style={{ background: isOccupied ? color : "var(--court-available-text)" }}
+                  />
+                </div>
+                <p
+                  className="text-[10px] font-bold uppercase tracking-wider mb-2 text-left"
+                  style={{ color }}
+                >
+                  {court.assigned_skill_level.replace(/_/g, " ")}
+                </p>
                 <div
-                  className={`w-1.5 h-1.5 rounded-full${court.status === "occupied" ? " pulse-ring" : ""}`}
+                  className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold w-full"
                   style={{
-                    background: court.status === "available"
-                      ? "var(--court-available-text)"
-                      : "var(--court-occupied-text)",
-                  }}
-                />
-                <span
-                  className="text-xs font-medium"
-                  style={{
-                    color: court.status === "available"
-                      ? "var(--court-available-text)"
-                      : "var(--court-occupied-text)",
+                    background: isOccupied ? color + "18" : "var(--court-available-bg)",
+                    color: isOccupied ? color : "var(--court-available-text)",
                   }}
                 >
-                  {court.status === "available" ? "Free" : "Playing"}
-                </span>
+                  {isOccupied ? "In Play" : "Available"}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Main content */}
       {activeSkills.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32">
-          <div className="p-4 rounded-2xl mb-4" style={{ background: "rgba(22,163,74,0.12)", color: "#4ade80" }}>
+          <div className="p-4 rounded-3xl mb-4 shadow-sm" style={{ background: "rgba(22,163,74,0.12)", color: "#4ade80" }}>
             <Users size={48} />
           </div>
-          <p className="text-2xl font-semibold mb-2" style={{ color: "var(--text-muted)" }}>
+          <p className="text-2xl font-bold mb-1" style={{ color: "var(--text-heading)" }}>
             Waiting for players...
           </p>
-          <p className="text-base" style={{ color: "var(--text-faint)" }}>
-            Check in players to get started
+          <p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+            Check in players to begin live matching
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {activeSkills.map((s) => {
             const skillQueue = getQueueForSkill(s.value);
             const topScores = getTopScores(s.value);
@@ -171,56 +169,75 @@ export default function DisplayPage() {
             return (
               <div
                 key={s.value}
-                className="rounded-2xl overflow-hidden"
-                style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+                className="rounded-3xl overflow-hidden transition-all duration-300"
+                style={{
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border)",
+                  boxShadow: "0 6px 24px rgba(0,0,0,0.04)",
+                }}
               >
                 {/* Skill header */}
                 <div
-                  className="px-5 py-3 flex items-center gap-2"
-                  style={{ background: color + "12", borderBottom: `1px solid ${color}30` }}
+                  className="px-5 py-3.5 flex items-center justify-between"
+                  style={{ background: color + "10", borderBottom: `1px solid ${color}25` }}
                 >
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-                  <h2 className="font-bold text-base" style={{ color: "var(--text-primary)" }}>{s.label}</h2>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full" style={{ background: color }} />
+                    <h2 className="font-bold text-sm tracking-tight" style={{ color: "var(--text-heading)" }}>{s.label}</h2>
+                  </div>
                   {skillQueue.length > 0 && (
                     <span
-                      className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{ background: color + "20", color }}
+                      className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                      style={{ background: color + "20", color, border: `1px solid ${color}35` }}
                     >
                       {skillQueue.length} waiting
                     </span>
                   )}
                 </div>
 
-                <div className="p-4 space-y-4">
+                <div className="p-5 space-y-5">
                   {/* Queue */}
                   {skillQueue.length > 0 && (
                     <div>
                       <p
-                        className="text-xs font-bold mb-2 uppercase tracking-widest"
+                        className="text-[10px] font-bold mb-2.5 uppercase tracking-widest"
                         style={{ color: "var(--text-faint)" }}
                       >
-                        Queue
+                        Active Queue
                       </p>
-                      <ol className="space-y-1.5">
-                        {skillQueue.slice(0, 8).map((entry, idx) => (
-                          <li key={entry.id} className="flex items-center gap-2">
-                            <span
-                              className="text-xs font-bold w-5 text-center"
-                              style={{ color: idx < 4 ? color : "var(--text-faint)" }}
+                      <div className="space-y-1.5">
+                        {skillQueue.slice(0, 8).map((entry, idx) => {
+                          const initials = (entry.player?.name ?? "?").slice(0, 2).toUpperCase();
+                          return (
+                            <div
+                              key={entry.id}
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-2xl"
+                              style={{ background: "var(--bg-subtle)" }}
                             >
-                              {idx + 1}
-                            </span>
-                            <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                              {entry.player?.name}
-                            </span>
-                          </li>
-                        ))}
+                              <div
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0"
+                                style={{ background: color + "25", color }}
+                              >
+                                {initials}
+                              </div>
+                              <span className="text-xs font-bold truncate flex-1" style={{ color: "var(--text-primary)" }}>
+                                {entry.player?.name}
+                              </span>
+                              <span
+                                className="text-[10px] font-bold px-1.5 py-0.2 rounded-full"
+                                style={{ background: "var(--bg-card)", color: "var(--text-faint)", border: "1px solid var(--border)" }}
+                              >
+                                #{idx + 1}
+                              </span>
+                            </div>
+                          );
+                        })}
                         {skillQueue.length > 8 && (
-                          <li className="text-xs pl-7" style={{ color: "var(--text-faint)" }}>
-                            +{skillQueue.length - 8} more
-                          </li>
+                          <p className="text-xs text-center pt-1" style={{ color: "var(--text-faint)" }}>
+                            +{skillQueue.length - 8} more in line
+                          </p>
                         )}
-                      </ol>
+                      </div>
                     </div>
                   )}
 
@@ -228,26 +245,30 @@ export default function DisplayPage() {
                   {topScores.length > 0 && (
                     <div>
                       <p
-                        className="text-xs font-bold mb-2 uppercase tracking-widest"
+                        className="text-[10px] font-bold mb-2.5 uppercase tracking-widest"
                         style={{ color: "var(--text-faint)" }}
                       >
-                        Top Scores
+                        Tier Leaders
                       </p>
-                      <ol className="space-y-1.5">
+                      <div className="space-y-1.5">
                         {topScores.map((entry, idx) => (
-                          <li key={entry.player_id} className="flex items-center gap-2">
+                          <div
+                            key={entry.player_id}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-2xl"
+                            style={{ background: "var(--bg-subtle)" }}
+                          >
                             <span className="w-5 flex items-center justify-center flex-shrink-0">
-                              {idx === 0 ? <Trophy size={14} className="text-amber-400" /> : <span className="text-xs font-bold" style={{ color: "var(--text-faint)" }}>{idx + 1}.</span>}
+                              {idx === 0 ? <Trophy size={14} className="text-amber-400" /> : <span className="text-xs font-bold" style={{ color: "var(--text-faint)" }}>{idx + 1}</span>}
                             </span>
-                            <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+                            <span className="flex-1 text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
                               {entry.player?.name}
                             </span>
-                            <span className="text-sm font-bold" style={{ color: "var(--score-normal)" }}>
-                              {entry.total_score}
+                            <span className="text-xs font-black" style={{ color: "var(--score-normal)" }}>
+                              {entry.total_score} pts
                             </span>
-                          </li>
+                          </div>
                         ))}
-                      </ol>
+                      </div>
                     </div>
                   )}
                 </div>

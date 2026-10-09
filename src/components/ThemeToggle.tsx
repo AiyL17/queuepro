@@ -26,12 +26,11 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={toggle}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all hover:opacity-90 flex-shrink-0 ${className}`}
+      className={`h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition-all hover:opacity-90 active:scale-95 flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-sm ${className}`}
       style={{
-        background: "rgba(255,255,255,0.06)",
+        background: "var(--bg-card)",
         color: "var(--text-muted)",
-        border: "1px solid var(--border-hover)",
-        backdropFilter: "blur(12px)",
+        border: "1px solid var(--border)",
       }}
     >
       <span
@@ -39,11 +38,11 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         style={{ transform: isDark ? "rotate(0deg)" : "rotate(20deg)" }}
       >
         {isDark
-          ? <Sun size={13} strokeWidth={2} />
-          : <Moon size={13} strokeWidth={2} />
+          ? <Sun size={14} strokeWidth={2.2} />
+          : <Moon size={14} strokeWidth={2.2} />
         }
       </span>
-      <span>{isDark ? "Light" : "Dark"}</span>
+      <span className="hidden sm:inline">{isDark ? "Light" : "Dark"}</span>
     </button>
   );
 }

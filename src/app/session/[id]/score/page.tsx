@@ -81,6 +81,7 @@ export default function ScorePage() {
     if (!court) { toast.error("No court selected"); return; }
     const s1 = parseInt(team1Score), s2 = parseInt(team2Score);
     if (isNaN(s1) || isNaN(s2) || s1 < 0 || s2 < 0) { toast.error("Enter valid scores"); return; }
+    if (s1 > 11 || s2 > 11) { toast.error("Max score in pickleball is 11 points"); return; }
 
     const allPlayerIds = [...team1, ...team2].map((p) => p.id);
     if (allPlayerIds.length === 0) { toast.error("No players found for this court"); return; }
@@ -240,239 +241,307 @@ export default function ScorePage() {
       ) : (
         <>
 
-          {/* Score inputs */}
+          {/* Score inputs & Match layout */}
           <div
-            className="rounded-2xl p-5 mb-5"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+            className="rounded-3xl p-6 mb-6 relative overflow-hidden"
+            style={{
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.06)",
+            }}
           >
-            {/* Score Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              {/* Team 1 Score Card */}
-              <div
-                className="p-4 rounded-2xl transition-all duration-200"
+            {/* Header / Match format info */}
+            <div className="flex items-center justify-between mb-6 pb-4" style={{ borderBottom: "1px solid var(--separator)" }}>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: SKILL_COLORS[court?.assigned_skill_level ?? ""] || "#8b5cf6" }} />
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--text-heading)" }}>
+                  {court?.name} · {gameMode === "doubles" ? "Doubles Match" : "Singles Match"}
+                </span>
+              </div>
+              <span
+                className="text-[10px] font-bold px-2.5 py-0.5 rounded-full capitalize"
                 style={{
-                  background: s1num > s2num && s1num > 0 ? "rgba(34,197,94,0.08)" : "var(--bg-card-alt)",
-                  border: `1px solid ${s1num > s2num && s1num > 0 ? "rgba(34,197,94,0.3)" : "var(--border)"}`,
+                  background: (SKILL_COLORS[court?.assigned_skill_level ?? ""] || "#8b5cf6") + "20",
+                  color: SKILL_COLORS[court?.assigned_skill_level ?? ""] || "#8b5cf6",
                 }}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
+                {court?.assigned_skill_level.replace(/_/g, " ")}
+              </span>
+            </div>
+
+            {/* Score Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+              {/* Team 1 Score Card */}
+              <div
+                className="p-5 rounded-3xl transition-all duration-300 relative overflow-hidden"
+                style={{
+                  background: s1num > s2num && s1num > 0
+                    ? "linear-gradient(145deg, var(--bg-card-alt) 0%, rgba(34,197,94,0.12) 100%)"
+                    : "var(--bg-card-alt)",
+                  border: `1.5px solid ${s1num > s2num && s1num > 0 ? "rgba(34,197,94,0.4)" : "var(--border)"}`,
+                  boxShadow: s1num > s2num && s1num > 0 ? "0 8px 28px rgba(34,197,94,0.15)" : "none",
+                }}
+              >
+                {s1num > s2num && s1num > 0 && (
+                  <div
+                    className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none"
+                    style={{ background: "radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 70%)" }}
+                  />
+                )}
+                <div className="flex items-center justify-between mb-4">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full"
                     style={{
-                      background: s1num > s2num && s1num > 0 ? "rgba(34,197,94,0.18)" : "var(--bg-subtle)",
+                      background: s1num > s2num && s1num > 0 ? "rgba(34,197,94,0.2)" : "var(--bg-subtle)",
                       color: s1num > s2num && s1num > 0 ? "var(--success-text)" : "var(--text-muted)",
-                    }}>
-                    {s1num > s2num && s1num > 0 && <Trophy size={11} />}
+                      border: `1px solid ${s1num > s2num && s1num > 0 ? "rgba(34,197,94,0.3)" : "transparent"}`,
+                    }}
+                  >
+                    {s1num > s2num && s1num > 0 && <Trophy size={12} className="text-amber-400" />}
                     {gameMode === "singles" ? "Player 1" : "Team 1"}
                   </span>
+                  {s1num > s2num && s1num > 0 && (
+                    <span className="text-[10px] font-black tracking-widest text-emerald-400 uppercase">WINNING</span>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-center gap-2 mb-3">
+                {/* Score Stepper */}
+                <div className="flex items-center justify-center gap-3 mb-4">
                   <button
                     type="button"
                     onClick={() => setTeam1Score(String(Math.max(0, s1num - 1)))}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
+                    disabled={s1num <= 0}
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer shadow-sm"
+                    style={{ background: "var(--bg-card)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
                   >
-                    <Minus size={16} />
+                    <Minus size={16} strokeWidth={2.5} />
                   </button>
 
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
+                    maxLength={2}
                     value={team1Score}
-                    onChange={(e) => setTeam1Score(e.target.value.replace(/[^0-9]/g, ""))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      if (!val) { setTeam1Score(""); return; }
+                      const num = parseInt(val, 10);
+                      setTeam1Score(String(Math.min(11, num)));
+                    }}
                     placeholder="0"
-                    className="w-20 text-center text-5xl font-black bg-transparent outline-none"
-                    style={{ color: s1num > s2num && s1num > 0 ? "var(--success-text)" : "var(--text-primary)" }}
+                    className="w-24 text-center text-5xl font-black bg-transparent outline-none"
+                    style={{ color: s1num > s2num && s1num > 0 ? "var(--success-text)" : "var(--text-heading)" }}
                   />
 
                   <button
                     type="button"
-                    onClick={() => setTeam1Score(String(s1num + 1))}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
+                    onClick={() => setTeam1Score(String(Math.min(11, s1num + 1)))}
+                    disabled={s1num >= 11}
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer shadow-sm"
+                    style={{ background: "rgba(124,58,237,0.15)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.3)" }}
                   >
-                    <Plus size={16} />
+                    <Plus size={16} strokeWidth={2.5} />
                   </button>
                 </div>
 
-                <div className="flex items-center justify-center mt-2">
+                <div className="flex items-center justify-center">
                   <button
                     type="button"
                     onClick={() => setTeam1Score("11")}
-                    className="px-3 py-1 rounded-lg text-xs font-bold transition-all hover:opacity-90 active:scale-95 cursor-pointer"
+                    className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
                     style={{
-                      background: s1num === 11 ? "var(--gradient-green)" : "var(--bg-subtle)",
+                      background: s1num === 11 ? "var(--gradient-green)" : "var(--bg-card)",
                       color: s1num === 11 ? "#fff" : "var(--text-muted)",
                       border: `1px solid ${s1num === 11 ? "rgba(34,197,94,0.4)" : "var(--border)"}`,
+                      boxShadow: s1num === 11 ? "0 4px 12px rgba(34,197,94,0.3)" : "none",
                     }}
                   >
-                    11 pts
+                    Set to 11 pts
                   </button>
                 </div>
               </div>
 
               {/* Team 2 Score Card */}
               <div
-                className="p-4 rounded-2xl transition-all duration-200"
+                className="p-5 rounded-3xl transition-all duration-300 relative overflow-hidden"
                 style={{
-                  background: s2num > s1num && s2num > 0 ? "rgba(34,197,94,0.08)" : "var(--bg-card-alt)",
-                  border: `1px solid ${s2num > s1num && s2num > 0 ? "rgba(34,197,94,0.3)" : "var(--border)"}`,
+                  background: s2num > s1num && s2num > 0
+                    ? "linear-gradient(145deg, var(--bg-card-alt) 0%, rgba(34,197,94,0.12) 100%)"
+                    : "var(--bg-card-alt)",
+                  border: `1.5px solid ${s2num > s1num && s2num > 0 ? "rgba(34,197,94,0.4)" : "var(--border)"}`,
+                  boxShadow: s2num > s1num && s2num > 0 ? "0 8px 28px rgba(34,197,94,0.15)" : "none",
                 }}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
+                {s2num > s1num && s2num > 0 && (
+                  <div
+                    className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none"
+                    style={{ background: "radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 70%)" }}
+                  />
+                )}
+                <div className="flex items-center justify-between mb-4">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full"
                     style={{
-                      background: s2num > s1num && s2num > 0 ? "rgba(34,197,94,0.18)" : "var(--bg-subtle)",
+                      background: s2num > s1num && s2num > 0 ? "rgba(34,197,94,0.2)" : "var(--bg-subtle)",
                       color: s2num > s1num && s2num > 0 ? "var(--success-text)" : "var(--text-muted)",
-                    }}>
-                    {s2num > s1num && s2num > 0 && <Trophy size={11} />}
+                      border: `1px solid ${s2num > s1num && s2num > 0 ? "rgba(34,197,94,0.3)" : "transparent"}`,
+                    }}
+                  >
+                    {s2num > s1num && s2num > 0 && <Trophy size={12} className="text-amber-400" />}
                     {gameMode === "singles" ? "Player 2" : "Team 2"}
                   </span>
+                  {s2num > s1num && s2num > 0 && (
+                    <span className="text-[10px] font-black tracking-widest text-emerald-400 uppercase">WINNING</span>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-center gap-2 mb-3">
+                {/* Score Stepper */}
+                <div className="flex items-center justify-center gap-3 mb-4">
                   <button
                     type="button"
                     onClick={() => setTeam2Score(String(Math.max(0, s2num - 1)))}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
+                    disabled={s2num <= 0}
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer shadow-sm"
+                    style={{ background: "var(--bg-card)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
                   >
-                    <Minus size={16} />
+                    <Minus size={16} strokeWidth={2.5} />
                   </button>
 
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
+                    maxLength={2}
                     value={team2Score}
-                    onChange={(e) => setTeam2Score(e.target.value.replace(/[^0-9]/g, ""))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      if (!val) { setTeam2Score(""); return; }
+                      const num = parseInt(val, 10);
+                      setTeam2Score(String(Math.min(11, num)));
+                    }}
                     placeholder="0"
-                    className="w-20 text-center text-5xl font-black bg-transparent outline-none"
-                    style={{ color: s2num > s1num && s2num > 0 ? "var(--success-text)" : "var(--text-primary)" }}
+                    className="w-24 text-center text-5xl font-black bg-transparent outline-none"
+                    style={{ color: s2num > s1num && s2num > 0 ? "var(--success-text)" : "var(--text-heading)" }}
                   />
 
                   <button
                     type="button"
-                    onClick={() => setTeam2Score(String(s2num + 1))}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
+                    onClick={() => setTeam2Score(String(Math.min(11, s2num + 1)))}
+                    disabled={s2num >= 11}
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer shadow-sm"
+                    style={{ background: "rgba(124,58,237,0.15)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.3)" }}
                   >
-                    <Plus size={16} />
+                    <Plus size={16} strokeWidth={2.5} />
                   </button>
                 </div>
 
-                <div className="flex items-center justify-center mt-2">
+                <div className="flex items-center justify-center">
                   <button
                     type="button"
                     onClick={() => setTeam2Score("11")}
-                    className="px-3 py-1 rounded-lg text-xs font-bold transition-all hover:opacity-90 active:scale-95 cursor-pointer"
+                    className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
                     style={{
-                      background: s2num === 11 ? "var(--gradient-green)" : "var(--bg-subtle)",
+                      background: s2num === 11 ? "var(--gradient-green)" : "var(--bg-card)",
                       color: s2num === 11 ? "#fff" : "var(--text-muted)",
                       border: `1px solid ${s2num === 11 ? "rgba(34,197,94,0.4)" : "var(--border)"}`,
+                      boxShadow: s2num === 11 ? "0 4px 12px rgba(34,197,94,0.3)" : "none",
                     }}
                   >
-                    11 pts
+                    Set to 11 pts
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Player cards — read-only, auto-populated */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Side 1 */}
+            {/* Players roster layout */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t" style={{ borderColor: "var(--separator)" }}>
+              {/* Side 1 Players */}
               <div>
-                <p
-                  className="text-xs font-bold mb-2 flex items-center gap-1"
-                  style={{ color: s1num > s2num ? "var(--success-text)" : "var(--text-muted)" }}
-                >
-                  {gameMode === "singles" ? <User size={11} /> : <Users size={11} />}
-                  {gameMode === "singles" ? "Player 1" : "Team 1"}
-                  {s1num > s2num && <Trophy size={11} />}
+                <p className="text-xs font-bold mb-2.5 uppercase tracking-wider" style={{ color: "var(--text-faint)" }}>
+                  {gameMode === "singles" ? "Player 1" : "Team 1 Roster"}
                 </p>
-                <div className="space-y-1.5">
-                  {team1.length > 0 ? team1.map((p) => (
-                    <div
-                      key={p.id}
-                      className="px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between gap-2"
-                      style={{background: "var(--bg-subtle)", color: "var(--text-primary)"}}
-                    >
-                      <span>{p.name}</span>
-                      <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0"
-                        style={{background: (SKILL_COLORS[p.skill_level] ?? "#6b7280") + "20",
-                          color: SKILL_COLORS[p.skill_level] ?? "#6b7280",}}
+                <div className="space-y-2">
+                  {team1.map((p) => {
+                    const color = SKILL_COLORS[p.skill_level ?? ""] || "#8b5cf6";
+                    return (
+                      <div
+                        key={p.id}
+                        className="px-3.5 py-2.5 rounded-2xl text-sm font-semibold flex items-center justify-between gap-2.5"
+                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
                       >
-                        {(p.skill_level ?? "").replace(/_/g, " ")}
-                      </span>
-                    </div>
-                  )) : (
-                    <div
-                      className="px-3 py-2 rounded-xl text-sm"
-                      style={{ background: "var(--bg-subtle)", color: "var(--text-faint)" }}
-                    >
-                      No players found
-                    </div>
-                  )}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                            style={{ background: color + "25", color }}
+                          >
+                            {p.name.slice(0, 1).toUpperCase()}
+                          </div>
+                          <span className="truncate" style={{ color: "var(--text-heading)" }}>{p.name}</span>
+                        </div>
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0"
+                          style={{ background: color + "20", color }}
+                        >
+                          {(p.skill_level ?? "").replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Side 2 */}
+              {/* Side 2 Players */}
               <div>
-                <p
-                  className="text-xs font-bold mb-2 flex items-center gap-1"
-                  style={{ color: s2num > s1num ? "var(--success-text)" : "var(--text-muted)" }}
-                >
-                  {gameMode === "singles" ? <User size={11} /> : <Users size={11} />}
-                  {gameMode === "singles" ? "Player 2" : "Team 2"}
-                  {s2num > s1num && <Trophy size={11} />}
+                <p className="text-xs font-bold mb-2.5 uppercase tracking-wider" style={{ color: "var(--text-faint)" }}>
+                  {gameMode === "singles" ? "Player 2" : "Team 2 Roster"}
                 </p>
-                <div className="space-y-1.5">
-                  {team2.length > 0 ? team2.map((p) => (
-                    <div
-                      key={p.id}
-                      className="px-3 py-2 rounded-xl text-sm font-medium flex items-center justify-between gap-2"
-                      style={{background: "var(--bg-subtle)", color: "var(--text-primary)"}}
-                    >
-                      <span>{p.name}</span>
-                      <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0"
-                        style={{background: (SKILL_COLORS[p.skill_level] ?? "#6b7280") + "20",
-                          color: SKILL_COLORS[p.skill_level] ?? "#6b7280",}}
+                <div className="space-y-2">
+                  {team2.map((p) => {
+                    const color = SKILL_COLORS[p.skill_level ?? ""] || "#8b5cf6";
+                    return (
+                      <div
+                        key={p.id}
+                        className="px-3.5 py-2.5 rounded-2xl text-sm font-semibold flex items-center justify-between gap-2.5"
+                        style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
                       >
-                        {(p.skill_level ?? "").replace(/_/g, " ")}
-                      </span>
-                    </div>
-                  )) : (
-                    <div
-                      className="px-3 py-2 rounded-xl text-sm"
-                      style={{ background: "var(--bg-subtle)", color: "var(--text-faint)" }}
-                    >
-                      No players found
-                    </div>
-                  )}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                            style={{ background: color + "25", color }}
+                          >
+                            {p.name.slice(0, 1).toUpperCase()}
+                          </div>
+                          <span className="truncate" style={{ color: "var(--text-heading)" }}>{p.name}</span>
+                        </div>
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0"
+                          style={{ background: color + "20", color }}
+                        >
+                          {(p.skill_level ?? "").replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Error / success */}
-
+          {/* Action button */}
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2"
+            className="btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 shadow-xl hover:scale-[1.01] active:scale-[0.99]"
             style={{
-              background: "linear-gradient(135deg, #d97706, #b45309)",
-              boxShadow: "0 4px 20px rgba(217,119,6,0.3)",
+              background: "var(--gradient-green)",
+              boxShadow: "0 8px 30px rgba(34,197,94,0.35)",
             }}
           >
             {saving ? (
-              <><Loader2 size={18} className="animate-spin" /> Saving...</>
+              <><Loader2 size={18} className="animate-spin" /> Recording score &amp; updating queue...</>
             ) : (
-              <><Check size={18} /> Save Score</>
+              <><Check size={18} strokeWidth={2.5} /> Save Final Score</>
             )}
           </button>
         </>

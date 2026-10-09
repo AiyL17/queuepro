@@ -192,93 +192,153 @@ export default function NewSessionPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
           {/* Left col: Game Mode */}
           <div>
-          {/* Game Mode */}
-          <div className="mb-7">
-            <h2 className="text-xs font-bold uppercase tracking-widest mb-1" style={{color: "var(--text-faint)"}}>Game Mode</h2>
-            <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>How will matches be played?</p>
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                { value: "doubles" as GameMode, icon: <Users size={22} strokeWidth={1.75} />, label: "Doubles", sub: "2 vs 2", color: "#7c3aed", bg: "rgba(124,58,237,0.12)" },
-                { value: "singles" as GameMode, icon: <User  size={22} strokeWidth={1.75} />, label: "Singles", sub: "1 vs 1", color: "#06b6d4", bg: "rgba(6,182,212,0.12)"   },
-              ]).map((m) => (
-                <button key={m.value} onClick={() => setGameMode(m.value)}
-                  className="feature-card p-4 text-left cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  style={{
-                    borderColor: gameMode === m.value ? m.color + "70" : undefined,
-                    boxShadow:   gameMode === m.value ? `0 0 0 1px ${m.color}40, 0 4px 20px ${m.color}20` : undefined,
-                  }}
-                >
-                  <div className="icon-circle mb-3 transition-transform duration-200 group-hover:scale-105"
-                    style={{ background: gameMode === m.value ? m.bg : "var(--bg-subtle)", color: gameMode === m.value ? m.color : "var(--text-faint)", width: 44, height: 44, borderRadius: 12 }}>
-                    {m.icon}
-                  </div>
-                  <p className="text-sm font-bold mb-0.5" style={{ color: gameMode === m.value ? m.color : "var(--text-primary)" }}>{m.label}</p>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{m.sub}</p>
-                  {gameMode === m.value && (
-                    <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full animate-scale-in"
-                      style={{ background: m.bg, color: m.color }}><Check size={11} /> Selected</div>
-                  )}
-                </button>
-              ))}
+            <div className="mb-7">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>Game Mode</h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}>Format</span>
+              </div>
+              <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>How will matches be structured?</p>
+              <div className="grid grid-cols-2 gap-4">
+                {([
+                  { value: "doubles" as GameMode, icon: <Users size={24} strokeWidth={2} />, label: "Doubles", sub: "2 vs 2 players", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
+                  { value: "singles" as GameMode, icon: <User  size={24} strokeWidth={2} />, label: "Singles", sub: "1 vs 1 match", color: "#06b6d4", bg: "rgba(6,182,212,0.12)"   },
+                ]).map((m) => (
+                  <button
+                    key={m.value}
+                    onClick={() => setGameMode(m.value)}
+                    className="p-5 text-left rounded-3xl relative overflow-hidden transition-all duration-300 cursor-pointer group"
+                    style={{
+                      background: gameMode === m.value
+                        ? `linear-gradient(145deg, var(--bg-card) 0%, ${m.color}10 100%)`
+                        : "var(--bg-card)",
+                      border: `1.5px solid ${gameMode === m.value ? m.color + "70" : "var(--border)"}`,
+                      boxShadow: gameMode === m.value ? `0 8px 30px ${m.color}22, 0 0 0 1px ${m.color}30` : "0 2px 10px rgba(0,0,0,0.04)",
+                      transform: gameMode === m.value ? "scale(1.02)" : "scale(1)",
+                    }}
+                  >
+                    {gameMode === m.value && (
+                      <div
+                        className="absolute -top-10 -right-10 w-24 h-24 rounded-full pointer-events-none"
+                        style={{ background: `radial-gradient(circle, ${m.color}25 0%, transparent 70%)` }}
+                      />
+                    )}
+                    <div
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 shadow-sm"
+                      style={{ background: m.bg, color: m.color }}
+                    >
+                      {m.icon}
+                    </div>
+                    <p className="text-base font-bold mb-1" style={{ color: gameMode === m.value ? m.color : "var(--text-heading)" }}>
+                      {m.label}
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{m.sub}</p>
+                    {gameMode === m.value && (
+                      <div
+                        className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                        style={{ background: m.color + "20", color: m.color, border: `1px solid ${m.color}40` }}
+                      >
+                        <Check size={11} strokeWidth={2.5} /> Active Mode
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
           </div>
 
           {/* Right col: Courts */}
           <div className="flex flex-col min-w-0">
             <div className="mb-4 flex-1 min-w-0">
-              <h2 className="text-xs font-bold uppercase tracking-widest mb-1" style={{color: "var(--text-faint)"}}>Courts ({courts.length})</h2>
+              <div className="flex items-center justify-between mb-1.5">
+                <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>
+                  Courts Setup
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(124,58,237,0.15)", color: "#a78bfa" }}>
+                  {courts.length} court{courts.length !== 1 ? "s" : ""}
+                </span>
+              </div>
               <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
-                Add courts and assign a skill level to each.
+                Name courts and assign target skill levels for each.
               </p>
-              <div className="space-y-3 max-h-[380px] sm:max-h-[440px] overflow-y-auto pr-1">
-                {courts.map((court, i) => (
-                  <div key={i} className="feature-card p-4 min-w-0 animate-slide-up">
-                    <div className="flex gap-3 items-center mb-3 min-w-0">
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0"
-                        style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa" }}>{i + 1}</div>
-                      <input type="text" value={court.name} onChange={(e) => updateCourt(i, "name", e.target.value)}
-                        className="flex-1 min-w-0 text-sm font-semibold bg-transparent border-0 outline-none truncate"
-                        style={{ color: "var(--text-primary)" }} placeholder="Court name" />
-                      <button onClick={() => removeCourt(i)} disabled={courts.length === 1}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center disabled:opacity-20 flex-shrink-0 hover:bg-red-500/20 transition-colors"
-                        style={{ background: "var(--error-bg)", color: "var(--error-text)" }}>
-                        <X size={13} />
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {SKILL_LEVELS.map((s) => (
-                        <button key={s.value} onClick={() => updateCourt(i, "skillLevel", s.value)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 flex-shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
-                          style={{
-                            background: court.skillLevel === s.value ? SKILL_COLORS[s.value] + "22" : "var(--bg-subtle)",
-                            color:      court.skillLevel === s.value ? SKILL_COLORS[s.value] : "var(--text-muted)",
-                            border: `1px solid ${court.skillLevel === s.value ? SKILL_COLORS[s.value] + "55" : "transparent"}`,
-                          }}>
-                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: SKILL_COLORS[s.value] }} />
-                          {s.label}
+              <div className="space-y-3.5 max-h-[380px] sm:max-h-[440px] overflow-y-auto pr-1">
+                {courts.map((court, i) => {
+                  const activeColor = SKILL_COLORS[court.skillLevel] || "#6b7280";
+                  return (
+                    <div
+                      key={i}
+                      className="p-4 rounded-3xl min-w-0 relative overflow-hidden transition-all duration-200"
+                      style={{
+                        background: "var(--bg-card)",
+                        border: `1px solid var(--border)`,
+                        boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+                      }}
+                    >
+                      <div className="flex gap-3 items-center mb-3 min-w-0">
+                        <div
+                          className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0"
+                          style={{ background: activeColor + "20", color: activeColor }}
+                        >
+                          {i + 1}
+                        </div>
+                        <input
+                          type="text"
+                          value={court.name}
+                          onChange={(e) => updateCourt(i, "name", e.target.value)}
+                          className="flex-1 min-w-0 text-sm font-bold bg-transparent border-0 outline-none truncate"
+                          style={{ color: "var(--text-primary)" }}
+                          placeholder="Court name"
+                        />
+                        <button
+                          onClick={() => removeCourt(i)}
+                          disabled={courts.length === 1}
+                          title="Remove court"
+                          className="w-7 h-7 rounded-xl flex items-center justify-center disabled:opacity-20 flex-shrink-0 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                          style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}
+                        >
+                          <X size={13} />
                         </button>
-                      ))}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {SKILL_LEVELS.map((s) => (
+                          <button
+                            key={s.value}
+                            onClick={() => updateCourt(i, "skillLevel", s.value)}
+                            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 flex-shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
+                            style={{
+                              background: court.skillLevel === s.value ? SKILL_COLORS[s.value] + "22" : "var(--bg-subtle)",
+                              color:      court.skillLevel === s.value ? SKILL_COLORS[s.value] : "var(--text-muted)",
+                              border: `1px solid ${court.skillLevel === s.value ? SKILL_COLORS[s.value] + "55" : "transparent"}`,
+                            }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: SKILL_COLORS[s.value] }} />
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            <button onClick={addCourt}
-              className="w-full py-3 rounded-2xl text-sm font-semibold hover:opacity-80 transition-all active:scale-[0.99] mb-8 flex items-center justify-center gap-2 cursor-pointer"
-              style={{ background: "transparent", color: "var(--text-muted)", border: "2px dashed var(--border)" }}>
+            <button
+              onClick={addCourt}
+              className="w-full py-3.5 rounded-2xl text-xs font-bold hover:opacity-80 transition-all active:scale-[0.99] mb-8 flex items-center justify-center gap-2 cursor-pointer"
+              style={{ background: "var(--bg-card)", color: "var(--text-primary)", border: "1.5px dashed var(--border-hover)" }}
+            >
               <Plus size={15} /> Add Another Court
             </button>
           </div>
 
-          {/* Full-width CTA spans both columns */}
+          {/* Full-width CTA */}
           <div className="lg:col-span-2">
-          <button onClick={() => setStep(2)}
-            className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2 cursor-pointer"
-            style={{ background: "var(--gradient-green)", boxShadow: "var(--glow-green)" }}>
-            Next: Add Players <ArrowRight size={18} />
-          </button>
+            <button
+              onClick={() => setStep(2)}
+              className="btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:scale-[1.01] transition-all"
+              style={{ background: "var(--gradient-cta)", boxShadow: "0 8px 30px rgba(124,58,237,0.3)" }}
+            >
+              Next: Add Players <ArrowRight size={18} />
+            </button>
           </div>
         </div>
       )}
@@ -287,105 +347,176 @@ export default function NewSessionPage() {
       {step === 2 && (
         <div className="animate-slide-up">
           {/* Mode reminder */}
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl mb-5 text-sm"
+          <div
+            className="flex items-center gap-3 px-5 py-3 rounded-2xl mb-6 text-sm"
             style={{
-              background: gameMode === "doubles" ? "rgba(124,58,237,0.08)" : "rgba(6,182,212,0.08)",
-              border: `1px solid ${gameMode === "doubles" ? "rgba(124,58,237,0.2)" : "rgba(6,182,212,0.2)"}`,
+              background: gameMode === "doubles" ? "rgba(139,92,246,0.08)" : "rgba(6,182,212,0.08)",
+              border: `1px solid ${gameMode === "doubles" ? "rgba(139,92,246,0.25)" : "rgba(6,182,212,0.25)"}`,
               color: gameMode === "doubles" ? "#a78bfa" : "#06b6d4",
-            }}>
-            {gameMode === "doubles" ? <Users size={15} /> : <User size={15} />}
-            <span className="font-semibold capitalize">{gameMode}</span>
-            <span style={{ color: "var(--text-muted)" }}>
-              — needs {gameMode === "doubles" ? "4" : "2"} players per court
-            </span>
+            }}
+          >
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: gameMode === "doubles" ? "rgba(139,92,246,0.15)" : "rgba(6,182,212,0.15)" }}>
+              {gameMode === "doubles" ? <Users size={16} /> : <User size={16} />}
+            </div>
+            <div>
+              <span className="font-bold capitalize">{gameMode} Mode</span>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                Each match will seat {gameMode === "doubles" ? "4" : "2"} players per court according to skill level.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left col: Add form */}
             <div>
-              <div className="mb-5">
-                <h2 className="text-xs font-bold uppercase tracking-widest mb-1" style={{color: "var(--text-faint)"}}>Add Players</h2>
+              <div className="mb-4">
+                <h2 className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "var(--text-faint)" }}>Add Players</h2>
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  Players will be auto-assigned to courts by skill level when you start.
+                  Enter player names and select their current skill level.
                 </p>
               </div>
 
-              <div className="feature-card p-4 mb-4">
-                <div className="input-field flex items-center gap-2 mb-3">
-                  <User size={15} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
-                  <input type="text" value={playerName} onChange={(e) => setPlayerName(e.target.value)}
+              <div
+                className="p-5 rounded-3xl mb-4"
+                style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 4px 20px rgba(0,0,0,0.04)" }}
+              >
+                <div
+                  className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl mb-3.5"
+                  style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}
+                >
+                  <User size={16} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
+                  <input
+                    type="text"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && addPlayer()}
-                    placeholder="Player name..." className="w-full text-sm bg-transparent border-0 outline-none min-w-0"
-                    style={{ color: "var(--text-primary)" }} />
+                    placeholder="Enter player name..."
+                    className="w-full text-sm font-semibold bg-transparent border-0 outline-none min-w-0"
+                    style={{ color: "var(--text-primary)" }}
+                  />
                 </div>
-                <div className="flex flex-wrap gap-2 mb-3">
+                <div className="flex flex-wrap gap-1.5 mb-4">
                   {SKILL_LEVELS.map((s) => (
-                    <button key={s.value} onClick={() => setPlayerSkill(s.value)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 flex-shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
+                    <button
+                      key={s.value}
+                      onClick={() => setPlayerSkill(s.value)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 flex-shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
                       style={{
                         background: playerSkill === s.value ? SKILL_COLORS[s.value] + "22" : "var(--bg-subtle)",
                         color:      playerSkill === s.value ? SKILL_COLORS[s.value] : "var(--text-muted)",
                         border: `1px solid ${playerSkill === s.value ? SKILL_COLORS[s.value] + "55" : "transparent"}`,
-                      }}>
+                      }}
+                    >
                       <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: SKILL_COLORS[s.value] }} />
                       {s.label}
                     </button>
                   ))}
                 </div>
-                <button onClick={addPlayer} disabled={!playerName.trim()}
-                  className="w-full py-2.5 rounded-full text-sm font-semibold disabled:opacity-30 flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.99] cursor-pointer"
-                  style={{ background: "rgba(22,163,74,0.12)", color: "#4ade80", border: "1px solid rgba(22,163,74,0.3)" }}>
-                  <UserPlus size={15} /> Add Player
+                <button
+                  onClick={addPlayer}
+                  disabled={!playerName.trim()}
+                  className="w-full py-3 rounded-2xl text-xs font-bold disabled:opacity-30 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                  style={{ background: "rgba(22,163,74,0.12)", color: "#4ade80", border: "1px solid rgba(22,163,74,0.25)" }}
+                >
+                  <UserPlus size={15} /> Add to Roster
                 </button>
               </div>
             </div>
 
             {/* Right col: Player list */}
             <div className="min-w-0">
-              <div className="mb-5">
-                <h2 className="text-xs font-bold uppercase tracking-widest mb-1" style={{color: "var(--text-faint)"}}>Players ({players.length})</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>
+                  Registered Roster
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                  {players.length} players
+                </span>
               </div>
 
               {players.length === 0 ? (
-                <div className="text-center py-10 animate-fade-in" style={{ color: "var(--text-faint)" }}>
-                  <User size={32} className="mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No players yet.</p>
+                <div
+                  className="rounded-3xl p-10 flex flex-col items-center text-center gap-3"
+                  style={{ background: "var(--bg-card)", border: "1.5px dashed var(--border)" }}
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "var(--bg-subtle)" }}>
+                    <User size={24} style={{ color: "var(--text-faint)" }} />
+                  </div>
+                  <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>No players registered yet</p>
+                  <p className="text-xs max-w-xs" style={{ color: "var(--text-muted)" }}>
+                    Add players using the form on the left. They will be auto-assigned to courts based on skill level.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[380px] sm:max-h-[440px] overflow-y-auto pr-1">
-                  {players.map((p, i) => (
-                    <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-2xl min-w-0 animate-scale-in"
-                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0"
-                        style={{ background: SKILL_COLORS[p.skillLevel] + "20", color: SKILL_COLORS[p.skillLevel] }}>
-                        {i + 1}
+                  {players.map((p, i) => {
+                    const color = SKILL_COLORS[p.skillLevel];
+                    const initials = p.name.slice(0, 2).toUpperCase();
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 px-4 py-3 rounded-2xl min-w-0 group transition-all hover:scale-[1.01]"
+                        style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}
+                      >
+                        {/* Avatar */}
+                        <div className="relative flex-shrink-0">
+                          <div
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black"
+                            style={{ background: color + "20", color }}
+                          >
+                            {initials}
+                          </div>
+                          <div
+                            className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
+                            style={{ background: "var(--bg-page)", color: "var(--text-faint)", border: "1px solid var(--border)" }}
+                          >
+                            {i + 1}
+                          </div>
+                        </div>
+
+                        {/* Name + Skill */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold truncate leading-tight" style={{ color: "var(--text-primary)" }}>
+                            {p.name}
+                          </p>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold capitalize mt-0.5" style={{ color }}>
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                            {p.skillLevel.replace(/_/g, " ")}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => removePlayer(i)}
+                          title="Remove player"
+                          className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-all opacity-70 group-hover:opacity-100 hover:scale-110 cursor-pointer"
+                          style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}
+                        >
+                          <X size={12} />
+                        </button>
                       </div>
-                      <span className="flex-1 text-sm font-semibold min-w-0 truncate" style={{ color: "var(--text-primary)" }}>{p.name}</span>
-                      <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0"
-                        style={{ background: SKILL_COLORS[p.skillLevel] + "20", color: SKILL_COLORS[p.skillLevel] }}>
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: SKILL_COLORS[p.skillLevel] }} />
-                        {p.skillLevel.replace(/_/g, " ")}
-                      </span>
-                      <button onClick={() => removePlayer(i)}
-                        className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-                        style={{ background: "var(--error-bg)", color: "var(--error-text)" }}>
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             {/* Full-width CTA */}
             <div className="lg:col-span-2">
-              <button onClick={handleStart} disabled={loading || players.length === 0}
-                className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2"
-                style={{ background: "var(--gradient-green)", boxShadow: players.length > 0 ? "var(--glow-green)" : "none" }}>
+              <button
+                onClick={handleStart}
+                disabled={loading || players.length === 0}
+                className="btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 cursor-pointer transition-all duration-300"
+                style={{
+                  background: "var(--gradient-green)",
+                  boxShadow: players.length > 0 ? "0 8px 30px rgba(34,197,94,0.35)" : "none",
+                  opacity: players.length === 0 ? 0.4 : 1,
+                }}
+              >
                 {loading ? (
-                  <><Loader2 size={18} className="animate-spin" /> Starting...</>
+                  <><Loader2 size={18} className="animate-spin" /> Preparing courts...</>
                 ) : (
-                  <><Rocket size={18} /> Start Session · {players.length} player{players.length !== 1 ? "s" : ""}</>
+                  <><Rocket size={18} /> Launch Session · {players.length} player{players.length !== 1 ? "s" : ""}</>
                 )}
               </button>
             </div>

@@ -186,27 +186,36 @@ export default function QueuePage() {
             return (
               <div
                 key={s.value}
-                className="rounded-2xl overflow-hidden"
-                style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+                className="rounded-3xl overflow-hidden transition-all duration-300"
+                style={{
+                  background: "var(--bg-card)",
+                  border: `1px solid var(--border)`,
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+                }}
               >
                 {/* Skill header */}
                 <div
-                  className="flex items-center justify-between px-5 py-3"
-                  style={{ borderBottom: "1px solid var(--separator)" }}
+                  className="flex items-center justify-between px-5 py-3.5"
+                  style={{
+                    background: color + "0a",
+                    borderBottom: "1px solid var(--separator)",
+                  }}
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ background: color }} />
-                    <span className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full" style={{ background: color }} />
+                    <span className="font-bold text-sm" style={{ color: "var(--text-heading)" }}>
                       {s.label}
                     </span>
                   </div>
-                  <div className="flex gap-3 text-xs">
-                    <span style={{ color: "var(--text-muted)" }}>{skillQueue.length} waiting</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}>
+                      {skillQueue.length} in queue
+                    </span>
                     <span
+                      className="font-bold text-[11px] px-2 py-0.5 rounded-full"
                       style={{
-                        color: availableCourts.length > 0
-                          ? "var(--court-available-text)"
-                          : "var(--court-occupied-text)",
+                        background: availableCourts.length > 0 ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+                        color:      availableCourts.length > 0 ? "var(--court-available-text)" : "var(--court-occupied-text)",
                       }}
                     >
                       {availableCourts.length}/{skillCourts.length} courts free
@@ -215,46 +224,66 @@ export default function QueuePage() {
                 </div>
 
                 {/* Queue list */}
-                <div className="p-3">
+                <div className="p-4">
                   {skillQueue.length === 0 ? (
-                    <p className="text-xs text-center py-3" style={{ color: "var(--text-faint)" }}>
-                      No players waiting
-                    </p>
+                    <div className="py-8 text-center">
+                      <p className="text-xs font-semibold" style={{ color: "var(--text-faint)" }}>
+                        No players waiting in this skill tier
+                      </p>
+                    </div>
                   ) : (
-                    <div className="space-y-1.5 mb-3">
+                    <div className="space-y-2 mb-4">
                       {skillQueue.map((entry, idx) => {
                         const isNext = canCall && nextPlayers.some((n) => n.id === entry.id);
+                        const initials = (entry.player?.name ?? "?").slice(0, 2).toUpperCase();
                         return (
                           <div
                             key={entry.id}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-                            style={{ background: isNext ? color + "0d" : "var(--bg-card-alt)" }}
+                            className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl transition-all group"
+                            style={{
+                              background: isNext ? `${color}14` : "var(--bg-subtle)",
+                              border: `1px solid ${isNext ? `${color}40` : "transparent"}`,
+                            }}
                           >
-                            <span
-                              className="text-xs font-bold w-5 text-center flex-shrink-0"
-                              style={{ color: isNext ? color : "var(--text-faint)" }}
-                            >
-                              {idx + 1}
-                            </span>
-                            <span className="flex-1 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                              {entry.player?.name}
-                            </span>
+                            {/* Avatar with rank */}
+                            <div className="relative flex-shrink-0">
+                              <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black"
+                                style={{ background: color + "25", color }}
+                              >
+                                {initials}
+                              </div>
+                              <div
+                                className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black"
+                                style={{ background: "var(--bg-page)", color: "var(--text-faint)", border: "1px solid var(--border)" }}
+                              >
+                                {idx + 1}
+                              </div>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold truncate leading-tight" style={{ color: "var(--text-primary)" }}>
+                                {entry.player?.name}
+                              </p>
+                              <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
+                                Joined {new Date(entry.joined_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+
                             {isNext && (
                               <span
-                                className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                                style={{ background: color + "20", color }}
+                                className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0"
+                                style={{ background: color + "25", color, border: `1px solid ${color}50` }}
                               >
-                                next up
+                                Ready
                               </span>
                             )}
-                            <span className="text-xs flex-shrink-0" style={{ color: "var(--text-faint)" }}>
-                              {new Date(entry.joined_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </span>
+
                             <button
                               type="button"
                               onClick={() => removeFromQueue(entry.id)}
                               title={`Remove ${entry.player?.name ?? "player"} from queue`}
-                              className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-all opacity-70 hover:opacity-100 hover:scale-110 cursor-pointer"
+                              className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-all opacity-0 group-hover:opacity-100 hover:scale-110 cursor-pointer"
                               style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}
                             >
                               <X size={12} />
@@ -270,20 +299,20 @@ export default function QueuePage() {
                     <button
                       onClick={() => callToPlay(availableCourts[0].id, nextPlayers.map((q) => q.player_id))}
                       disabled={calling === availableCourts[0].id}
-                      className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                      style={{ background: color + "20", color, border: `1px solid ${color}40` }}
+                      className="w-full py-3 rounded-2xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] shadow-md"
+                      style={{ background: "var(--gradient-cta)", color: "#fff", boxShadow: "0 4px 16px rgba(124,58,237,0.3)" }}
                     >
                       <Volume2 size={14} />
                       {calling === availableCourts[0].id
-                        ? "Calling..."
-                        : `Send next ${nextCount} to ${availableCourts[0].name}`}
+                        ? "Dispatching players..."
+                        : `Dispatch next ${nextCount} to ${availableCourts[0].name}`}
                     </button>
                   )}
 
                   {/* Not enough players yet */}
                   {availableCourts.length > 0 && skillQueue.length > 0 && skillQueue.length < minPlayersToStart && (
-                    <p className="text-xs text-center py-2" style={{ color: "var(--text-faint)" }}>
-                      Need {minPlayersToStart - skillQueue.length} more player{minPlayersToStart - skillQueue.length !== 1 ? "s" : ""} to start a match
+                    <p className="text-xs text-center py-2 font-medium" style={{ color: "var(--text-faint)" }}>
+                      Need {minPlayersToStart - skillQueue.length} more player{minPlayersToStart - skillQueue.length !== 1 ? "s" : ""} to launch match
                     </p>
                   )}
                 </div>

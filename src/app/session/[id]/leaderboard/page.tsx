@@ -3,11 +3,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { SKILL_LEVELS, SkillLevel, PlayerSessionScore, PairScore } from "@/lib/types";
+import { SKILL_LEVELS, SkillLevel, PlayerSessionScore, PairScore, Match } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BackButton } from "@/components/BackButton";
+import dynamic from "next/dynamic";
+import { useScrollPosition } from "@/hooks/useScroll";
+import { SkeletonLeaderboardRow } from "@/components/Skeleton";
 
-import { Trophy, Medal, Award, Filter } from "lucide-react";
+const DownloadButton = dynamic(() => import("@/components/DownloadButton").then(mod => mod.DownloadButton), { ssr: false });
+
+import { Trophy, Medal, Award, Filter, Flame, TrendingUp, TrendingDown, ClipboardList } from "lucide-react";
 
 const SKILL_COLORS: Record<SkillLevel, string> = {
   beginner:          "#3b82f6",
@@ -30,13 +35,15 @@ export default function LeaderboardPage() {
 
   const [scores, setScores]           = useState<PlayerSessionScore[]>([]);
   const [pairs, setPairs]             = useState<PairScore[]>([]);
+  const [matches, setMatches]         = useState<Match[]>([]);
   const [loading, setLoading]         = useState(true);
   const [activeTab, setActiveTab]     = useState<"individual" | "pairs">("individual");
   const [selectedSkill, setSelectedSkill] = useState<SkillLevel | "all">("all");
+  const scrollY = useScrollPosition();
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: sd }, { data: pd }] = await Promise.all([
+    const [{ data: sd }, { data: pd }, { data: md }] = await Promise.all([
       supabase.from("player_session_scores")
         .select("*, player:players(*)")
         .eq("session_id", sessionId)
@@ -45,9 +52,14 @@ export default function LeaderboardPage() {
         .select("*, player1:players!pair_scores_player1_id_fkey(*), player2:players!pair_scores_player2_id_fkey(*)")
         .eq("session_id", sessionId)
         .order("total_score", { ascending: false }),
+      supabase.from("matches")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("played_at", { ascending: false }),
     ]);
     setScores((sd as PlayerSessionScore[]) || []);
     setPairs((pd as PairScore[]) || []);
+    setMatches((md as Match[]) || []);
     setLoading(false);
   }, [sessionId]);
 
@@ -57,6 +69,7 @@ export default function LeaderboardPage() {
     const ch = supabase.channel("lb-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "player_session_scores", filter: `session_id=eq.${sessionId}` }, fetchData)
       .on("postgres_changes", { event: "*", schema: "public", table: "pair_scores",           filter: `session_id=eq.${sessionId}` }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches",               filter: `session_id=eq.${sessionId}` }, fetchData)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [sessionId, fetchData]);
@@ -69,12 +82,50 @@ export default function LeaderboardPage() {
     pairs.filter((p) => p.player1?.skill_level === skill)
       .sort((a, b) => b.total_score - a.total_score || b.games_played - a.games_played);
 
+  const getPlayerStreak = (playerId: string) => {
+    let streak = 0;
+    let wonLast = null;
+    for (const match of matches) {
+      const isTeam1 = match.team1_player_ids.includes(playerId);
+      const isTeam2 = match.team2_player_ids.includes(playerId);
+      if (!isTeam1 && !isTeam2) continue;
+      
+      const myScore = isTeam1 ? match.team1_score : match.team2_score;
+      const theirScore = isTeam1 ? match.team2_score : match.team1_score;
+      
+      if (wonLast === null) wonLast = myScore > theirScore;
+
+      if (myScore > theirScore) streak++;
+      else break;
+    }
+    return { streak, wonLast };
+  };
+
+  const getPairStreak = (p1: string, p2: string) => {
+    let streak = 0;
+    for (const match of matches) {
+      const onTeam1 = match.team1_player_ids.includes(p1) && match.team1_player_ids.includes(p2);
+      const onTeam2 = match.team2_player_ids.includes(p1) && match.team2_player_ids.includes(p2);
+      if (!onTeam1 && !onTeam2) continue;
+
+      const myScore = onTeam1 ? match.team1_score : match.team2_score;
+      const theirScore = onTeam1 ? match.team2_score : match.team1_score;
+      
+      if (myScore > theirScore) streak++;
+      else break;
+    }
+    return streak;
+  };
+
   if (loading) return (
-    <main className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-page)" }}>
-      <div className="text-center">
-        <div className="w-8 h-8 rounded-full border-2 animate-spin mx-auto mb-3"
-          style={{ borderColor: "#7c3aed", borderTopColor: "transparent" }} />
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>Loading leaderboard...</p>
+    <main className="min-h-screen max-w-5xl mx-auto px-4 sm:px-6 pt-5" style={{ background: "var(--bg-page)" }}>
+      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+        <div className="p-4 border-b border-[var(--separator)]">
+          <div className="h-4 w-32 animate-pulse rounded" style={{ background: "var(--bg-subtle)" }} />
+        </div>
+        <SkeletonLeaderboardRow />
+        <SkeletonLeaderboardRow />
+        <SkeletonLeaderboardRow />
       </div>
     </main>
   );
@@ -90,30 +141,42 @@ export default function LeaderboardPage() {
     <main className="min-h-screen max-w-5xl mx-auto" style={{ background: "var(--bg-page)" }}>
 
       <header
-        className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 sm:px-6 py-3"
-        style={{background: "var(--bg-page)",
-          borderBottom: "1px solid var(--border-subtle)",
-          backdropFilter: "blur(12px)",}}
+        className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 sm:px-6 py-3 transition-all duration-300"
+        style={{
+          background: scrollY > 10 ? "var(--bg-page)" : "transparent",
+          borderBottom: scrollY > 10 ? "1px solid var(--border-subtle)" : "1px solid transparent",
+          backdropFilter: scrollY > 10 ? "blur(12px)" : "none",
+        }}
       >
         <div className="flex items-center gap-2 min-w-0">
           <BackButton fallback={`/session/${sessionId}`} />
-          <div className="w-px h-4 flex-shrink-0" style={{background: "var(--border)"}} />
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{background: "linear-gradient(135deg, #7c3aed, #9333ea)", color: "#fff"}}>
+          <div className="w-px h-4 flex-shrink-0 hidden sm:block" style={{ background: "var(--border)" }} />
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 hidden sm:flex"
+            style={{ background: "linear-gradient(135deg, #7c3aed, #9333ea)", color: "#fff" }}>
             <Trophy size={16} className="text-amber-300" />
           </div>
-          <div>
-            <h1 className="text-sm font-black tracking-tight" style={{color: "var(--text-heading)"}}>Leaderboard</h1>
-            <p className="text-xs" style={{color: "var(--text-muted)"}}>Live session rankings</p>
+          <div className="min-w-0">
+            <h1 className="text-sm font-black tracking-tight truncate leading-tight" style={{ color: "var(--text-heading)" }}>
+              Leaderboard
+            </h1>
+            <p className="text-[10px] truncate hidden sm:block" style={{ color: "var(--text-muted)" }}>
+              Live rankings
+            </p>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <DownloadButton scores={scores} pairs={pairs} sessionId={sessionId} />
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="px-4 sm:px-6 pt-4 pb-6 animate-slide-up">
 
       {/* Skill Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar">
+      <div
+        className="flex items-center gap-2 overflow-x-auto pb-1 mb-5 no-scrollbar"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
+      >
         <button
           onClick={() => setSelectedSkill("all")}
           className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5"
@@ -168,143 +231,244 @@ export default function LeaderboardPage() {
         ))}
       </div>
 
-      {/* 2-col on desktop, single panel on mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up">
+      {/* Mobile tab switcher header labels — shown above the per-category rows on desktop */}
+      <div className="hidden lg:grid lg:grid-cols-2 gap-6 mb-2 animate-slide-up">
+        <h2 className="text-xs font-bold uppercase tracking-widest flex items-center gap-1.5"
+          style={{ color: "var(--text-faint)" }}>
+          <Trophy size={13} className="text-amber-400" /> Individual Rankings
+        </h2>
+        <h2 className="text-xs font-bold uppercase tracking-widest flex items-center gap-1.5"
+          style={{ color: "var(--text-faint)" }}>
+          <Award size={13} className="text-purple-400" /> Best Pairs
+        </h2>
+      </div>
 
-        {/* ── Individual ── */}
-        <div className={activeTab === "individual" ? "block" : "hidden lg:block"}>
-          <h2 className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-1.5"
-            style={{ color: "var(--text-faint)" }}>
-            <Trophy size={13} className="text-amber-400" /> Individual Rankings
-          </h2>
+      {/* Per-category rows: each skill level gets its own row with Individual + Pairs side by side */}
+      <div className="space-y-6 animate-slide-up">
 
-          {!hasIndividual ? (
-            <div className="rounded-2xl p-12 text-center"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-              <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: "rgba(124,58,237,0.1)", color: "#a78bfa" }}>
-                <Trophy size={24} />
+        {/* Empty state — shown only when truly nothing exists */}
+        {!hasIndividual && !hasPairs && (
+          <div className="rounded-3xl p-12 flex flex-col items-center text-center gap-4 transition-all"
+            style={{ background: "var(--bg-card)", border: "1px dashed var(--border-hover)" }}>
+            <div className="relative w-20 h-20 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: "#7c3aed" }} />
+              <div className="relative z-10 w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg transform -rotate-6"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #9333ea)", color: "#fff" }}>
+                <Trophy size={32} />
               </div>
-              <p className="font-bold mb-1" style={{ color: "var(--text-heading)" }}>No scores found</p>
-              <p className="text-sm" style={{ color: "var(--text-faint)" }}>
-                {selectedSkill === "all" ? "Play matches & enter scores to populate the leaderboard" : `No players with scores found for ${SKILL_LEVELS.find(s=>s.value===selectedSkill)?.label}`}
+              <div className="absolute -bottom-2 -right-2 z-20 w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2"
+                style={{ background: "var(--bg-card)", borderColor: "var(--bg-card)" }}>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(124,58,237,0.15)", color: "#a78bfa" }}>
+                  <Award size={14} />
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="text-lg font-black tracking-tight mb-2" style={{ color: "var(--text-heading)" }}>No rankings yet</p>
+              <p className="text-sm max-w-xs mx-auto leading-relaxed" style={{ color: "var(--text-faint)" }}>
+                {selectedSkill === "all"
+                  ? "Play matches and enter scores to start climbing the leaderboard!"
+                  : `No matches have been played for the ${SKILL_LEVELS.find(s => s.value === selectedSkill)?.label} skill level.`}
               </p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {activeSkills.map((s) => {
-                const skillScores = getScoresForSkill(s.value);
-                if (!skillScores.length) return null;
-                const color = SKILL_COLORS[s.value];
-                return (
-                  <div key={s.value} className="rounded-2xl overflow-hidden shadow-sm transition-all hover:shadow-md"
-                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                    <div className="flex items-center gap-2 px-5 py-3"
-                      style={{ background: color + "0d", borderBottom: `1px solid ${color}25` }}>
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-                      <span className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>{s.label}</span>
-                      <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
-                        style={{ background: color + "20", color }}>
-                        {skillScores.length} player{skillScores.length !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    <div className="divide-y divide-[var(--separator)]">
-                      {skillScores.map((entry, idx) => (
-                        <div key={entry.player_id}
-                          className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
-                          style={{
-                            background: idx === 0 ? "rgba(234,179,8,0.04)" : undefined,
-                          }}
-                        >
-                          <span className="w-8 flex justify-center flex-shrink-0">
-                            <RankBadge rank={idx} />
-                          </span>
-                          <span className={`flex-1 text-sm font-semibold truncate ${idx === 0 ? "text-amber-400" : ""}`}
-                            style={{ color: idx === 0 ? undefined : "var(--text-primary)" }}>
-                            {entry.player?.name}
-                          </span>
-                          <span className="text-xs font-mono mr-3" style={{ color: "var(--text-muted)" }}>
-                            {entry.games_played}g
-                          </span>
-                          <span className="text-base font-black font-mono"
-                            style={{ color: idx === 0 ? "#eab308" : "var(--score-normal)" }}>
-                            {entry.total_score}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* ── Best Pairs ── */}
-        <div className={activeTab === "pairs" ? "block" : "hidden lg:block"}>
-          <h2 className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-1.5"
-            style={{ color: "var(--text-faint)" }}>
-            <Award size={13} className="text-purple-400" /> Best Pairs
-          </h2>
+        {activeSkills.map((s) => {
+          const skillScores = getScoresForSkill(s.value);
+          const skillPairs  = getPairsForSkill(s.value);
+          if (!skillScores.length && !skillPairs.length) return null;
 
-          {!hasPairs ? (
-            <div className="rounded-2xl p-12 text-center"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-              <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: "rgba(124,58,237,0.1)", color: "#a78bfa" }}>
-                <Award size={24} />
+          const color = SKILL_COLORS[s.value];
+
+          return (
+            <div key={s.value}>
+              {/* Category divider — visible separator between skill groups */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
+                <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{s.label}</span>
+                <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
               </div>
-              <p className="font-bold mb-1" style={{ color: "var(--text-heading)" }}>No pair data found</p>
-              <p className="text-sm" style={{ color: "var(--text-faint)" }}>
-                {selectedSkill === "all" ? "Tracked automatically as doubles matches are completed" : `No pair data found for ${SKILL_LEVELS.find(s=>s.value===selectedSkill)?.label}`}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {activeSkills.map((s) => {
-                const skillPairs = getPairsForSkill(s.value);
-                if (!skillPairs.length) return null;
-                const color = SKILL_COLORS[s.value];
-                return (
-                  <div key={s.value} className="rounded-2xl overflow-hidden shadow-sm transition-all hover:shadow-md"
-                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                    <div className="flex items-center gap-2 px-5 py-3"
-                      style={{ background: color + "0d", borderBottom: `1px solid ${color}20` }}>
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-                      <span className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>{s.label}</span>
-                    </div>
-                    <div className="divide-y divide-[var(--separator)]">
-                      {skillPairs.map((pair, idx) => (
-                        <div key={`${pair.player1_id}-${pair.player2_id}`}
-                          className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
-                          style={{
-                            background: idx === 0 ? "rgba(192,132,252,0.06)" : undefined,
-                          }}
-                        >
-                          <span className="w-8 flex justify-center flex-shrink-0">
-                            <RankBadge rank={idx} />
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate" style={{ color: idx === 0 ? "var(--pair-top)" : "var(--text-primary)" }}>
-                              {pair.player1?.name} &amp; {pair.player2?.name}
-                            </p>
-                            <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                              {pair.games_played} game{pair.games_played !== 1 ? "s" : ""} together
-                            </p>
-                          </div>
-                          <span className="text-base font-black font-mono"
-                            style={{ color: idx === 0 ? "var(--pair-top)" : "var(--pair-normal)" }}>
-                            {pair.total_score}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
-      </div>{/* end grid */}
+              {/* Mobile: tab-based single column */}
+              <div className="lg:hidden">
+                {/* Mobile: Individual */}
+                {activeTab === "individual" && (
+                  skillScores.length > 0 ? (
+                    <div className="rounded-2xl overflow-hidden shadow-sm"
+                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                      <div className="divide-y divide-[var(--separator)]">
+                        {skillScores.map((entry, idx) => {
+                          const { streak, wonLast } = getPlayerStreak(entry.player_id);
+                          return (
+                            <div key={entry.player_id}
+                              className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
+                              style={{ background: idx === 0 ? "rgba(234,179,8,0.04)" : undefined }}>
+                              <span className="w-8 flex justify-center flex-shrink-0"><RankBadge rank={idx} /></span>
+                              <div className="flex-1 min-w-0 flex items-center gap-2">
+                                <span className={`text-sm font-semibold truncate ${idx === 0 ? "text-amber-400" : ""}`}
+                                  style={{ color: idx === 0 ? undefined : "var(--text-primary)" }}>
+                                  {entry.player?.name}
+                                </span>
+                                {streak >= 3 && <Flame size={14} className="text-orange-500 animate-pulse flex-shrink-0" />}
+                              </div>
+                              {wonLast !== null && (
+                                <span className="flex-shrink-0">
+                                  {wonLast ? <TrendingUp size={14} className="text-green-500" /> : <TrendingDown size={14} className="text-red-500" />}
+                                </span>
+                              )}
+                              <span className="text-xs font-mono mx-2" style={{ color: "var(--text-muted)" }}>{entry.games_played}g</span>
+                              <span className="text-base font-black font-mono"
+                                style={{ color: idx === 0 ? "#eab308" : "var(--score-normal)" }}>{entry.total_score}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-center py-4" style={{ color: "var(--text-faint)" }}>No individual scores yet</p>
+                  )
+                )}
+
+                {/* Mobile: Pairs */}
+                {activeTab === "pairs" && (
+                  skillPairs.length > 0 ? (
+                    <div className="rounded-2xl overflow-hidden shadow-sm"
+                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                      <div className="divide-y divide-[var(--separator)]">
+                        {skillPairs.map((pair, idx) => {
+                          const streak = getPairStreak(pair.player1_id, pair.player2_id);
+                          return (
+                            <div key={`${pair.player1_id}-${pair.player2_id}`}
+                              className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
+                              style={{ background: idx === 0 ? "rgba(192,132,252,0.06)" : undefined }}>
+                              <span className="w-8 flex justify-center flex-shrink-0"><RankBadge rank={idx} /></span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate flex items-center gap-1.5"
+                                  style={{ color: idx === 0 ? "var(--pair-top)" : "var(--text-primary)" }}>
+                                  {pair.player1?.name} &amp; {pair.player2?.name}
+                                  {streak >= 3 && <Flame size={12} className="text-orange-500 animate-pulse flex-shrink-0" />}
+                                </p>
+                                <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                                  {pair.games_played} game{pair.games_played !== 1 ? "s" : ""} together
+                                </p>
+                              </div>
+                              <span className="text-base font-black font-mono"
+                                style={{ color: idx === 0 ? "var(--pair-top)" : "var(--pair-normal)" }}>{pair.total_score}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-center py-4" style={{ color: "var(--text-faint)" }}>No pair data yet</p>
+                  )
+                )}
+              </div>
+
+              {/* Desktop: side-by-side cards in the same row */}
+              <div className="hidden lg:grid lg:grid-cols-2 gap-6">
+
+                {/* Individual card */}
+                <div className="rounded-2xl overflow-hidden shadow-sm transition-all hover:shadow-md"
+                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                  {skillScores.length > 0 ? (
+                    <>
+                      <div className="flex items-center gap-2 px-5 py-2.5"
+                        style={{ background: color + "0d", borderBottom: `1px solid ${color}25` }}>
+                        <Trophy size={12} style={{ color }} />
+                        <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Individual</span>
+                        <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: color + "20", color }}>
+                          {skillScores.length} player{skillScores.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="divide-y divide-[var(--separator)]">
+                        {skillScores.map((entry, idx) => {
+                          const { streak, wonLast } = getPlayerStreak(entry.player_id);
+                          return (
+                            <div key={entry.player_id}
+                              className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
+                              style={{ background: idx === 0 ? "rgba(234,179,8,0.04)" : undefined }}>
+                              <span className="w-8 flex justify-center flex-shrink-0"><RankBadge rank={idx} /></span>
+                              <div className="flex-1 min-w-0 flex items-center gap-2">
+                                <span className={`text-sm font-semibold truncate ${idx === 0 ? "text-amber-400" : ""}`}
+                                  style={{ color: idx === 0 ? undefined : "var(--text-primary)" }}>
+                                  {entry.player?.name}
+                                </span>
+                                {streak >= 3 && <Flame size={14} className="text-orange-500 animate-pulse flex-shrink-0" />}
+                              </div>
+                              {wonLast !== null && (
+                                <span className="flex-shrink-0">
+                                  {wonLast ? <TrendingUp size={14} className="text-green-500" /> : <TrendingDown size={14} className="text-red-500" />}
+                                </span>
+                              )}
+                              <span className="text-xs font-mono mx-2" style={{ color: "var(--text-muted)" }}>{entry.games_played}g</span>
+                              <span className="text-base font-black font-mono"
+                                style={{ color: idx === 0 ? "#eab308" : "var(--score-normal)" }}>{entry.total_score}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center py-10 px-5">
+                      <p className="text-sm" style={{ color: "var(--text-faint)" }}>No individual scores yet</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pairs card */}
+                <div className="rounded-2xl overflow-hidden shadow-sm transition-all hover:shadow-md"
+                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                  {skillPairs.length > 0 ? (
+                    <>
+                      <div className="flex items-center gap-2 px-5 py-2.5"
+                        style={{ background: color + "0d", borderBottom: `1px solid ${color}20` }}>
+                        <Award size={12} style={{ color }} />
+                        <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Best Pairs</span>
+                      </div>
+                      <div className="divide-y divide-[var(--separator)]">
+                        {skillPairs.map((pair, idx) => {
+                          const streak = getPairStreak(pair.player1_id, pair.player2_id);
+                          return (
+                            <div key={`${pair.player1_id}-${pair.player2_id}`}
+                              className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--bg-card-hover)]"
+                              style={{ background: idx === 0 ? "rgba(192,132,252,0.06)" : undefined }}>
+                              <span className="w-8 flex justify-center flex-shrink-0"><RankBadge rank={idx} /></span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate flex items-center gap-1.5"
+                                  style={{ color: idx === 0 ? "var(--pair-top)" : "var(--text-primary)" }}>
+                                  {pair.player1?.name} &amp; {pair.player2?.name}
+                                  {streak >= 3 && <Flame size={12} className="text-orange-500 animate-pulse flex-shrink-0" />}
+                                </p>
+                                <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                                  {pair.games_played} game{pair.games_played !== 1 ? "s" : ""} together
+                                </p>
+                              </div>
+                              <span className="text-base font-black font-mono"
+                                style={{ color: idx === 0 ? "var(--pair-top)" : "var(--pair-normal)" }}>{pair.total_score}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center py-10 px-5">
+                      <p className="text-sm" style={{ color: "var(--text-faint)" }}>No pair data yet</p>
+                    </div>
+                  )}
+                </div>
+
+              </div>{/* end desktop grid */}
+            </div>
+          );
+        })}
+
+      </div>{/* end space-y-6 */}
+
+      {/* Remove the old mobile tab switcher since tabs are now per-category on mobile */}
 
       </div>{/* end px-4 sm:px-6 pt-4 pb-6 animate-slide-up wrapper */}
 

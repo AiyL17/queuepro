@@ -1,0 +1,27 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "blocking",
+      "label": "Rotation order not guaranteed in RPC",
+      "description": "array_agg building v_to_requeue from unnest(p_requeued_ids) has no ORDER BY. On a retry where the de-dup guard fires for a subset of players, the remaining IDs are aggregated in an unspecified order, scrambling the doubles pairing rotation. Fix: array_agg(pid ORDER BY array_position(p_requeued_ids, pid)).",
+      "confidence": "confirmed"
+    },
+    {
+      "id": 2,
+      "severity": "blocking",
+      "label": "Score stats double-counted on retry",
+      "description": "player_session_scores and pair_scores update loops run unconditionally even when alreadyRecorded is true. A retry after requeueAfterMatch throws will add scores a second time. Fix: move the score loops inside the if (!alreadyRecorded) block.",
+      "confidence": "confirmed"
+    },
+    {
+      "id": 3,
+      "severity": "non-blocking",
+      "label": "security definer RPC bypasses RLS",
+      "description": "requeue_after_match runs with owner-level privileges, bypassing RLS on queue_entries and courts. Benign under current open policies, but a silent policy bypass if RLS is ever tightened. Document the intent or switch to security invoker.",
+      "confidence": "confirmed"
+    }
+  ],
+  "reviewDoc": "c:\\xampp\\htdocs\\queuepro\\app\\.agents\\tasks\\review.md"
+}

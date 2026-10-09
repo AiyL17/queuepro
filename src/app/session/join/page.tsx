@@ -55,79 +55,103 @@ export default function JoinSessionPage() {
           <ThemeToggle />
         </div>
 
-        {/* Heading */}
-        <div className="mb-8">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4"
-            style={{background: "var(--gradient-cta)"}}
-          >
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M8 12h8M12 8v8" />
-            </svg>
-          </div>
-          <h1
-            className="text-3xl font-black tracking-tight mb-2"
-            style={{ color: "var(--text-heading)" }}
-          >
-            Join Session
-          </h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Enter the session ID shared by the host.
-          </p>
-        </div>
-
-        {/* Input card */}
-        <div className="feature-card p-5 mb-4">
-          <label
-            className="block text-xs font-semibold mb-3 tracking-widest uppercase"
-            style={{ color: "var(--text-faint)" }}
-          >
-            Session ID
-          </label>
-          <div className="input-field flex items-center gap-2">
-            <Hash size={15} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
-            <input
-              type="text"
-              value={sessionId}
-              onChange={(e) => setSessionId(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-              placeholder="Paste session ID here..."
-              className="w-full text-sm bg-transparent outline-none font-mono"
-              style={{ color: "var(--text-primary)" }}
-            />
-          </div>
-        </div>
-
-        {/* CTA */}
-        <button
-          onClick={handleJoin}
-          disabled={loading}
-          className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2"
-          style={{ background: "var(--gradient-green)", boxShadow: "var(--glow-green)" }}
+        {/* Card */}
+        <div
+          className="p-8 rounded-3xl relative overflow-hidden"
+          style={{
+            background: "linear-gradient(145deg, var(--bg-card) 0%, rgba(124,58,237,0.06) 100%)",
+            border: "1px solid var(--border)",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
+          }}
         >
-          {loading ? (
-            <>
-              <Loader2 size={18} className="animate-spin" />
-              Looking up...
-            </>
-          ) : (
-            <>
-              Join Session
-              <ArrowRight size={18} />
-            </>
-          )}
-        </button>
+          {/* Glow blob */}
+          <div
+            className="absolute -top-12 -right-12 w-32 h-32 rounded-full pointer-events-none"
+            style={{ background: "radial-gradient(circle, rgba(124,58,237,0.2) 0%, transparent 70%)" }}
+          />
 
-        <div className="mt-5 text-center">
-          <span className="text-sm" style={{color: "var(--text-faint)"}}>or </span>
-          <a
-            href="/session/new"
-            className="text-sm font-semibold hover:underline"
-            style={{color: "var(--text-faint)"}}
+          {/* Heading */}
+          <div className="mb-6 relative z-10">
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 shadow-md"
+              style={{ background: "var(--gradient-cta)" }}
+            >
+              <Hash size={24} className="text-white" strokeWidth={2.5} />
+            </div>
+            <h1
+              className="text-2xl font-black tracking-tight mb-1.5"
+              style={{ color: "var(--text-heading)" }}
+            >
+              Join Session
+            </h1>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Enter the session ID provided by your session coordinator or court manager.
+            </p>
+          </div>
+
+          {/* Input */}
+          <div className="mb-5 relative z-10">
+            <label
+              className="block text-[10px] font-bold mb-2 tracking-widest uppercase"
+              style={{ color: "var(--text-faint)" }}
+            >
+              Session Code / ID
+            </label>
+            <div
+              className="flex items-center gap-2.5 px-4 py-3.5 rounded-2xl transition-all"
+              style={{
+                background: "var(--bg-subtle)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <Hash size={16} style={{ color: "var(--text-faint)", flexShrink: 0 }} />
+              <input
+                type="text"
+                value={sessionId}
+                onChange={(e) => setSessionId(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                placeholder="e.g. cbf8a77b-4fef..."
+                className="w-full text-sm bg-transparent outline-none font-mono font-medium"
+                style={{ color: "var(--text-primary)" }}
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* CTA */}
+          <button
+            onClick={handleJoin}
+            disabled={loading || !sessionId.trim()}
+            className="btn-primary w-full py-3.5 text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg hover:scale-[1.01] active:scale-[0.99] relative z-10"
+            style={{
+              background: "var(--gradient-green)",
+              boxShadow: sessionId.trim() ? "0 8px 24px rgba(34,197,94,0.35)" : "none",
+              opacity: !sessionId.trim() ? 0.5 : 1,
+            }}
           >
-            Start new session instead →
-          </a>
+            {loading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Connecting...
+              </>
+            ) : (
+              <>
+                Join Session
+                <ArrowRight size={16} />
+              </>
+            )}
+          </button>
+
+          <div className="mt-5 text-center relative z-10">
+            <span className="text-xs" style={{ color: "var(--text-faint)" }}>Looking to host? </span>
+            <a
+              href="/session/new"
+              className="text-xs font-bold hover:underline"
+              style={{ color: "#a78bfa" }}
+            >
+              Create session instead →
+            </a>
+          </div>
         </div>
       </div>
     </main>

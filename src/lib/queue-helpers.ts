@@ -186,3 +186,63 @@ export async function requeueAfterMatch(
     throw new Error(`requeueAfterMatch: RPC failed — ${rpcErr.message}`);
   }
 }
+
+/**
+ * tryFillCourts
+ *
+ * Scans every available court in the session and, for each one that has
+ * enough waiting players of the matching skill level, promotes those players
+ * to "playing" and marks the court "occupied".
+ *
+ * Call this:
+ *   - After a player checks in (so courts fill immediately without waiting for a match to end)
+ *   - After fetchData on the dashboard (so a page reload fixes any unfilled courts)
+ *
+ * @param sessionId  – the active session UUID
+ * @param gameMode   – "singles" | "doubles"
+ */
+export async function tryFillCourts(
+  sessionId: string,
+  gameMode: GameMode
+): Promise<void> {
+  const supabase = createClient();
+  const needed = gameMode === "singles" ? 2 : 4;
+
+  // 1. Get all courts for this session that are currently available
+  const { data: courts, error: courtErr } = await supabase
+    .from("courts")
+    .select("*")
+    .eq("session_id", sessionId)
+    .eq("status", "available");
+
+  if (courtErr || !courts || courts.length === 0) return;
+
+  // 2. For each available court, check if enough matching players are waiting
+  for (const court of courts as Court[]) {
+    const { data: waiters, error: waiterErr } = await supabase
+      .from("queue_entries")
+      .select("id, player_id")
+      .eq("session_id", sessionId)
+      .eq("skill_level", court.assigned_skill_level)
+      .eq("status", "waiting")
+      .order("joined_at", { ascending: true })
+      .limit(needed);
+
+    if (waiterErr || !waiters || waiters.length < needed) continue;
+
+    // 3. Promote the first N waiters to "playing"
+    const ids = waiters.slice(0, needed).map((w: { id: string; player_id: string }) => w.id);
+    const { error: promoteErr } = await supabase
+      .from("queue_entries")
+      .update({ status: "playing" })
+      .in("id", ids);
+
+    if (promoteErr) continue;
+
+    // 4. Mark court occupied
+    await supabase
+      .from("courts")
+      .update({ status: "occupied" })
+      .eq("id", court.id);
+  }
+}

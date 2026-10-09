@@ -116,3 +116,71 @@ alter publication supabase_realtime add table courts;
 alter publication supabase_realtime add table queue_entries;
 alter publication supabase_realtime add table player_session_scores;
 alter publication supabase_realtime add table pair_scores;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- RPC: requeue_after_match
+-- Atomically re-inserts finished players into the waitlist and 
+-- promotes the next N players if enough are waiting.
+-- ─────────────────────────────────────────────────────────────────────
+create or replace function requeue_after_match(
+  p_session_id uuid,
+  p_court_id uuid,
+  p_skill_level text,
+  p_needed integer,
+  p_requeued_ids uuid[],
+  p_requeue_base_ms bigint
+) returns void as $$
+declare
+  v_player_id uuid;
+  v_idx integer := 0;
+  v_waitlist uuid[];
+begin
+  -- 1. Re-insert players as waiting, de-duping if they are already waiting
+  foreach v_player_id in array p_requeued_ids
+  loop
+    if not exists (
+      select 1 from queue_entries 
+      where session_id = p_session_id 
+        and player_id = v_player_id 
+        and status = 'waiting'
+    ) then
+      insert into queue_entries (session_id, player_id, skill_level, status, joined_at)
+      values (
+        p_session_id, 
+        v_player_id, 
+        p_skill_level, 
+        'waiting', 
+        to_timestamp((p_requeue_base_ms + v_idx) / 1000.0)
+      );
+    end if;
+    v_idx := v_idx + 1;
+  end loop;
+
+  -- 2. Fetch the top N waiting players
+  select array_agg(id) into v_waitlist
+  from (
+    select id
+    from queue_entries
+    where session_id = p_session_id
+      and status = 'waiting'
+      and skill_level = p_skill_level
+    order by joined_at asc
+    limit p_needed
+  ) as t;
+
+  -- 3. If we have enough players, promote them
+  if array_length(v_waitlist, 1) = p_needed then
+    update queue_entries
+    set status = 'playing'
+    where id = any(v_waitlist);
+
+    update courts
+    set status = 'occupied'
+    where id = p_court_id;
+  else
+    update courts
+    set status = 'available'
+    where id = p_court_id;
+  end if;
+end;
+$$ language plpgsql;
