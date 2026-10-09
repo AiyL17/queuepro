@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Court, Player, QueueEntry, GameMode, SkillLevel, SKILL_LEVELS, Match } from "@/lib/types";
 import { requeueAfterMatch, tryFillCourts } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame } from "lucide-react";
+import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame, Power } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { useToast } from "@/lib/toast";
 import { useScrollPosition } from "@/hooks/useScroll";
@@ -878,17 +878,38 @@ export default function SessionPage() {
           {/* Waitlist sidebar */}
           <div className="w-full lg:w-80 lg:flex-shrink-0 lg:sticky lg:top-20 self-start">
             {/* Sidebar header */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>Queue</h2>
-                {waitlist.length > 0 && (
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b" }}>
-                    {waitlist.length} waiting
-                  </span>
-                )}
-              </div>
-              <div className="flex-1 mx-3 h-px" style={{ background: "var(--border)" }} />
-              <UserCheck size={13} style={{ color: "var(--text-faint)" }} />
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-xs font-bold uppercase tracking-widest flex-shrink-0" style={{ color: "var(--text-faint)" }}>Queue</h2>
+              <div className="flex-1 h-px min-w-[4px]" style={{ background: "var(--border)" }} />
+              {/* Organizer action pills — matching Add Court style */}
+              {isOrganizer && (
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheckinName("");
+                      setCheckinSkill("beginner");
+                      setShowCheckinModal(true);
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #15803d)", color: "#fff", boxShadow: "0 2px 10px rgba(22,163,74,0.35)" }}
+                    title="Check in a player"
+                  >
+                    <UserCheck size={13} strokeWidth={2.5} />
+                    <span>Check In</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEndConfirm(true)}
+                    className="flex items-center gap-1.5 text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+                    style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "#fff", boxShadow: "0 2px 10px rgba(239,68,68,0.35)" }}
+                    title="End this session"
+                  >
+                    <Power size={13} strokeWidth={2.5} />
+                    <span>End Session</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {waitlist.length === 0 ? (
@@ -1029,31 +1050,6 @@ export default function SessionPage() {
               </div>
             )}
 
-            {/* Check-in shortcut — organizer only */}
-            {isOrganizer && (
-            <button
-              onClick={() => {
-                setCheckinName("");
-                setCheckinSkill("beginner");
-                setShowCheckinModal(true);
-              }}
-              className="w-full mt-3 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all hover:opacity-80 hover:scale-[1.01] cursor-pointer"
-              style={{ background: "rgba(22,163,74,0.10)", color: "#4ade80", border: "1px solid rgba(22,163,74,0.25)" }}
-            >
-              + Check in player
-            </button>
-            )}
-
-            {/* End Session button — organizer only */}
-            {isOrganizer && (
-            <button
-              onClick={() => setEndConfirm(true)}
-              className="w-full mt-2 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
-              style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}
-            >
-              End Session
-            </button>
-            )}
           </div>
         </div>
 
