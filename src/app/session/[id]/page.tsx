@@ -5,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Court, Player, QueueEntry, GameMode, SkillLevel } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Trophy, Users, User, ArrowLeft, Check, Loader2, Copy, CheckCheck, Plus, Minus, X } from "lucide-react";
+import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
+import { useToast } from "@/lib/toast";
 
 const SKILL_COLORS: Record<string, string> = {
   beginner:          "#3b82f6",
@@ -40,9 +41,9 @@ export default function SessionPage() {
   const [team1Score, setTeam1Score]   = useState("");
   const [team2Score, setTeam2Score]   = useState("");
   const [saving, setSaving]           = useState(false);
-  const [saveError, setSaveError]     = useState("");
   const [endConfirm, setEndConfirm]   = useState(false);
   const [ending, setEnding]           = useState(false);
+  const toast = useToast();
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
@@ -102,16 +103,16 @@ export default function SessionPage() {
       team1: court.playingPlayers.slice(0, half),
       team2: court.playingPlayers.slice(half, half * 2),
     });
-    setTeam1Score(""); setTeam2Score(""); setSaveError("");
+    setTeam1Score(""); setTeam2Score("");
   };
 
-  const closeModal = () => { setScoreModal(null); setTeam1Score(""); setTeam2Score(""); setSaveError(""); };
+  const closeModal = () => { setScoreModal(null); setTeam1Score(""); setTeam2Score(""); };
 
   const handleSaveScore = async () => {
     if (!scoreModal) return;
     const s1 = parseInt(team1Score), s2 = parseInt(team2Score);
-    if (isNaN(s1) || isNaN(s2) || s1 < 0 || s2 < 0) { setSaveError("Enter valid scores"); return; }
-    setSaving(true); setSaveError("");
+    if (isNaN(s1) || isNaN(s2) || s1 < 0 || s2 < 0) { toast.error("Enter valid scores"); return; }
+    setSaving(true);
 
     const { court, team1, team2 } = scoreModal;
     const allPlayers = [...team1, ...team2];
@@ -251,7 +252,7 @@ export default function SessionPage() {
       closeModal();
       fetchData();
     } catch (err: unknown) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save");
+      toast.error(err instanceof Error ? err.message : "Failed to save");
     } finally { setSaving(false); }
   };
 
@@ -285,57 +286,97 @@ export default function SessionPage() {
   );
 
   return (
-    <main className="min-h-screen p-4 sm:p-6" style={{ background: "var(--bg-page)" }}>
-      <div className="max-w-5xl mx-auto">
+    <main className="min-h-screen" style={{ background: "var(--bg-page)" }}>
 
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-6 sm:mb-8">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h1 className="text-lg sm:text-xl font-black tracking-tight" style={{ color: "var(--text-heading)" }}>
-                Session Dashboard
-              </h1>
-              <span
-                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                style={{
-                  background: gameMode === "doubles" ? "rgba(124,58,237,0.12)" : "rgba(6,182,212,0.12)",
-                  color:      gameMode === "doubles" ? "#a78bfa" : "#06b6d4",
-                }}
-              >
-                {gameMode === "doubles" ? <Users size={10} /> : <User size={10} />}
-                {gameMode === "doubles" ? "2v2 Doubles" : "1v1 Singles"}
-              </span>
-            </div>
-            <button
-              onClick={copyId}
-              className="flex items-center gap-1.5 text-xs font-mono transition-all hover:opacity-80 truncate max-w-full"
-              style={{ color: copied ? "var(--success-text)" : "var(--text-faint)" }}
-            >
-              {copied ? <CheckCheck size={12} /> : <Copy size={12} />}
-              <span className="truncate">{sessionId.slice(0, 18)}...</span>
-            </button>
+      {/* ── Sticky top nav bar ── */}
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 sm:px-6 py-3"
+        style={{
+          background: "var(--bg-page)",
+          borderBottom: "1px solid var(--border-subtle)",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        {/* Left cluster */}
+        <div className="flex items-center gap-2 min-w-0">
+          <BackButton href="/" label="Home" />
+          <div className="w-px h-4 flex-shrink-0" style={{ background: "var(--border)" }} />
+          <h1 className="text-sm sm:text-base font-black tracking-tight flex-shrink-0" style={{ color: "var(--text-heading)" }}>
+            Session Dashboard
+          </h1>
+          <span
+            className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+            style={{
+              background: gameMode === "doubles" ? "rgba(124,58,237,0.12)" : "rgba(6,182,212,0.12)",
+              color:      gameMode === "doubles" ? "#a78bfa" : "#06b6d4",
+            }}
+          >
+            {gameMode === "doubles" ? <Users size={10} /> : <User size={10} />}
+            {gameMode === "doubles" ? "2v2 Doubles" : "1v1 Singles"}
+          </span>
+          <button
+            onClick={copyId}
+            className="flex items-center gap-1 text-xs font-mono transition-all hover:opacity-80 hidden sm:flex"
+            style={{ color: copied ? "var(--success-text)" : "var(--text-faint)" }}
+          >
+            {copied ? <CheckCheck size={12} /> : <Copy size={12} />}
+            <span>{sessionId.slice(0, 12)}…</span>
+          </button>
+        </div>
+
+        {/* Right cluster */}
+        <div className="flex gap-2 items-center flex-shrink-0">
+          <button
+            onClick={() => router.push(`/session/${sessionId}/leaderboard`)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
+            style={{ background: "linear-gradient(135deg, #7c3aed, #9333ea)", color: "#ffffff", boxShadow: "0 4px 14px rgba(124,58,237,0.35)" }}
+          >
+            <Trophy size={13} className="text-amber-300" />
+            <span className="hidden sm:inline">Leaderboard</span>
+          </button>
+          <ThemeToggle />
+        </div>
+      </header>
+
+      {/* ── Page content ── */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-5">
+
+        {/* Stats strip */}
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <div
+            className="rounded-2xl p-3 text-center"
+            style={{ background: "var(--error-bg)", color: "var(--error-text)" }}
+          >
+            <p className="text-xl font-black leading-none mb-1">
+              {courts.filter((c) => c.status === "occupied").length}
+            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Courts in play</p>
           </div>
-          <div className="flex gap-2 items-center flex-shrink-0">
-            <BackButton href="/" label="Home" />
-            <button
-              onClick={() => router.push(`/session/${sessionId}/leaderboard`)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
-              style={{ background: "linear-gradient(135deg, #7c3aed, #9333ea)", color: "#ffffff", boxShadow: "0 4px 14px rgba(124,58,237,0.35)" }}
-            >
-              <Trophy size={13} className="text-amber-300" />
-              <span className="hidden sm:inline">Leaderboard</span>
-            </button>
-            <ThemeToggle />
+          <div
+            className="rounded-2xl p-3 text-center"
+            style={{ background: "var(--success-bg)", color: "var(--success-text)" }}
+          >
+            <p className="text-xl font-black leading-none mb-1">
+              {courts.filter((c) => c.status === "available").length}
+            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Courts available</p>
+          </div>
+          <div
+            className="rounded-2xl p-3 text-center"
+            style={{ background: "rgba(245,158,11,0.10)", color: "#f59e0b" }}
+          >
+            <p className="text-xl font-black leading-none mb-1">{waitlist.length}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Waiting</p>
           </div>
         </div>
 
-        {/* Main layout: Courts + Waitlist — stacked on mobile, side-by-side on md+ */}
-        <div className="flex flex-col md:flex-row gap-5">
+        {/* Main layout: Courts + Waitlist — stacked on mobile, side-by-side on lg+ */}
+        <div className="flex flex-col lg:flex-row gap-5">
 
           {/* Courts */}
           <div className="flex-1 min-w-0">
             <h2 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-faint)" }}>
-              Courts — {courts.filter((c) => c.status === "occupied").length} in play · {courts.filter((c) => c.status === "available").length} available
+              Courts
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {courts.map((court) => {
@@ -346,7 +387,7 @@ export default function SessionPage() {
                   <div
                     key={court.id}
                     onClick={() => openScoreModal(court)}
-                    className="rounded-2xl p-4 relative overflow-hidden transition-all duration-200"
+                    className="rounded-2xl p-4 relative overflow-hidden transition-all duration-200 group"
                     style={{
                       background: "var(--bg-card)",
                       border: `1px solid ${isOccupied ? color + "55" : "var(--border)"}`,
@@ -376,9 +417,13 @@ export default function SessionPage() {
                         </span>
                       </div>
 
-                      <p className="text-xs capitalize mb-3" style={{ color }}>
+                      {/* Skill level pill badge */}
+                      <span
+                        className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full capitalize mb-3"
+                        style={{ background: color + "22", color }}
+                      >
                         {court.assigned_skill_level.replace(/_/g, " ")}
-                      </p>
+                      </span>
 
                       {/* Players currently playing */}
                       {isOccupied && court.playingPlayers.length > 0 && (
@@ -414,7 +459,8 @@ export default function SessionPage() {
                               ))}
                             </div>
                           )}
-                          <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color }}>
+                          {/* Tap hint — fades in on hover */}
+                          <div className="flex items-center gap-1.5 text-xs font-semibold opacity-60 group-hover:opacity-100 transition-opacity" style={{ color }}>
                             <Trophy size={11} /> Tap to end match &amp; enter score
                           </div>
                         </>
@@ -433,18 +479,22 @@ export default function SessionPage() {
             </div>
           </div>
 
-          {/* Waitlist — full width on mobile, fixed sidebar on md+ */}
-          <div className="w-full md:w-64 md:flex-shrink-0">
+          {/* Waitlist — full width on mobile, fixed sidebar on lg+ */}
+          <div className="w-full lg:w-72 lg:flex-shrink-0">
             <h2 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-faint)" }}>
               Waitlist · {waitlist.length}
             </h2>
 
             {waitlist.length === 0 ? (
               <div
-                className="rounded-2xl p-5 text-center"
+                className="rounded-2xl p-6 flex flex-col items-center text-center gap-2"
                 style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
               >
-                <p className="text-xs" style={{ color: "var(--text-faint)" }}>No players waiting</p>
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-1" style={{ background: "var(--bg-subtle)" }}>
+                  <Users size={18} style={{ color: "var(--text-faint)" }} />
+                </div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Queue is empty</p>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--text-faint)" }}>No players are waiting. Check in players to fill the courts.</p>
               </div>
             ) : (
               <div
@@ -459,12 +509,16 @@ export default function SessionPage() {
                       className="flex items-center gap-2.5 px-3.5 py-2.5 transition-all hover:bg-[var(--bg-card-hover)] min-w-0 group"
                       style={{ borderBottom: idx < waitlist.length - 1 ? "1px solid var(--separator)" : undefined }}
                     >
-                      <span className="text-xs font-bold w-5 text-center flex-shrink-0"
-                        style={{ color: "var(--text-faint)" }}>{idx + 1}</span>
-                      <span className="flex-1 text-sm font-medium truncate min-w-0" style={{ color: "var(--text-primary)" }}>
-                        {entry.player?.name}
-                      </span>
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} title={entry.skill_level} />
+                      {/* Position badge */}
+                      <span
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                        style={{ background: "var(--bg-subtle)", color: "var(--text-faint)" }}
+                      >{idx + 1}</span>
+                      {/* Player name + skill level */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{entry.player?.name}</p>
+                        <p className="text-[10px] capitalize" style={{ color }}>{entry.skill_level.replace(/_/g, " ")}</p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeFromWaitlist(entry.id)}
@@ -488,54 +542,69 @@ export default function SessionPage() {
             >
               + Check in player
             </button>
+
+            {/* End Session button — inside sidebar */}
+            <button
+              onClick={() => setEndConfirm(true)}
+              className="w-full mt-2 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
+              style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}
+            >
+              End Session
+            </button>
           </div>
         </div>
 
       </div>
 
-      {/* ── End Session ── */}
-      <div
-        className="max-w-5xl mx-auto mt-10 pb-6 flex justify-end px-4 sm:px-6"
-      >
-        {!endConfirm ? (
-          <button
-            onClick={() => setEndConfirm(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all hover:opacity-90"
-            style={{background: "var(--error-bg)",
-              color: "var(--error-text)",
-              border: "1px solid var(--error-border)",}}
-          >
-            End Session
-          </button>
-        ) : (
+      {/* ── End Session confirmation modal ── */}
+      {endConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}
+          onClick={(e) => { if (e.target === e.currentTarget && !ending) setEndConfirm(false); }}
+        >
           <div
-            className="flex items-center gap-3 px-4 py-2.5 rounded-2xl"
-            style={{background: "var(--error-bg)",
-              border: "1px solid var(--error-border)",}}
+            className="w-full max-w-sm rounded-3xl p-6 animate-scale-in"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--error-border)", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}
           >
-            <span className="text-sm font-semibold" style={{color: "var(--error-text)"}}>
+            {/* Icon */}
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: "var(--error-bg)" }}
+            >
+              <X size={22} style={{ color: "var(--error-text)" }} />
+            </div>
+
+            {/* Copy */}
+            <h3 className="text-lg font-black text-center tracking-tight mb-1" style={{ color: "var(--text-heading)" }}>
               End this session?
-            </span>
-            <button
-              onClick={() => setEndConfirm(false)}
-              disabled={ending}
-              className="text-xs px-3 py-1.5 rounded-full transition-all hover:opacity-80 disabled:opacity-40"
-              style={{background: "var(--bg-subtle)", color: "var(--text-muted)"}}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleEndSession}
-              disabled={ending}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-bold transition-all hover:opacity-90 disabled:opacity-50"
-              style={{background: "var(--error-text)",
-                color: "#fff",}}
-            >
-              {ending ? <><Loader2 size={13} className="animate-spin" /> Ending...</> : "Confirm"}
-            </button>
+            </h3>
+            <p className="text-sm text-center leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
+              This will close the session for all players. Scores and leaderboard data will be preserved, but the session cannot be reopened.
+            </p>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEndConfirm(false)}
+                disabled={ending}
+                className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all hover:opacity-80 disabled:opacity-40"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEndSession}
+                disabled={ending}
+                className="flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ background: "var(--error-text)", color: "#fff" }}
+              >
+                {ending ? <><Loader2 size={15} className="animate-spin" /> Ending...</> : "End Session"}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Score Modal ── */}
       {scoreModal && (
@@ -710,13 +779,6 @@ export default function SessionPage() {
                 </div>
               </div>
             </div>
-
-            {saveError && (
-              <div className="rounded-xl px-3 py-2 mb-4 text-sm"
-                style={{ background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)" }}>
-                {saveError}
-              </div>
-            )}
 
             <div className="flex gap-2">
               <button onClick={closeModal}
