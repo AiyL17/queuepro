@@ -3,10 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Court, Player, QueueEntry, GameMode, SkillLevel, SKILL_LEVELS } from "@/lib/types";
+import { Court, Player, QueueEntry, GameMode, SkillLevel, SKILL_LEVELS, Match } from "@/lib/types";
 import { requeueAfterMatch, tryFillCourts } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink } from "lucide-react";
+import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { useToast } from "@/lib/toast";
 import { useScrollPosition } from "@/hooks/useScroll";
@@ -39,6 +39,7 @@ export default function SessionPage() {
   const [gameMode, setGameMode]       = useState<GameMode>("doubles");
   const [courts, setCourts]           = useState<CourtWithPlayers[]>([]);
   const [waitlist, setWaitlist]       = useState<QueueEntry[]>([]);
+  const [matches, setMatches]         = useState<Match[]>([]);
   const [loading, setLoading]         = useState(true);
   const [copied, setCopied]           = useState(false);
   const [scoreModal, setScoreModal]   = useState<ScoreModal | null>(null);
@@ -84,9 +85,25 @@ export default function SessionPage() {
     }
   };
 
+  const getPlayerStreak = useCallback((playerId: string) => {
+    let streak = 0;
+    for (const match of matches) {
+      const isTeam1 = match.team1_player_ids?.includes(playerId);
+      const isTeam2 = match.team2_player_ids?.includes(playerId);
+      if (!isTeam1 && !isTeam2) continue;
+      const won = isTeam1 ? match.team1_score > match.team2_score : match.team2_score > match.team1_score;
+      if (won) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }, [matches]);
+
   const fetchData = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: sd }, { data: cd }, { data: qd }] = await Promise.all([
+    const [{ data: sd }, { data: cd }, { data: qd }, { data: md }] = await Promise.all([
       supabase.from("sessions").select("game_mode, organizer_token").eq("id", sessionId).single(),
       supabase.from("courts").select("*").eq("session_id", sessionId).order("name"),
       supabase.from("queue_entries")
@@ -94,7 +111,13 @@ export default function SessionPage() {
         .eq("session_id", sessionId)
         .in("status", ["playing", "waiting"])
         .order("joined_at"),
+      supabase.from("matches")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("played_at", { ascending: false }),
     ]);
+
+    setMatches((md as Match[]) || []);
 
     const mode = (sd?.game_mode ?? "doubles") as GameMode;
     setGameMode(mode);
@@ -151,6 +174,7 @@ export default function SessionPage() {
     const ch = supabase.channel("session-hub")
       .on("postgres_changes", { event: "*", schema: "public", table: "courts",        filter: `session_id=eq.${sessionId}` }, fetchData)
       .on("postgres_changes", { event: "*", schema: "public", table: "queue_entries", filter: `session_id=eq.${sessionId}` }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches",       filter: `session_id=eq.${sessionId}` }, fetchData)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [sessionId, fetchData]);
@@ -654,70 +678,159 @@ export default function SessionPage() {
                     {isOccupied && court.playingPlayers.length > 0 && (
                       <div className="relative z-10">
                         {gameMode === "doubles" ? (
-                          /* Doubles: Team 1 vs Team 2 with VS divider */
+                          /* Doubles: Team 1 vs Team 2 with animated battle clash */
                           <div className="flex items-center gap-2 mb-3">
                             {/* Team 1 */}
                             <div className="flex-1 min-w-0">
                               <p className="text-[9px] font-black uppercase tracking-widest mb-1.5" style={{ color: color + "99" }}>Team 1</p>
                               <div className="flex flex-col gap-1">
-                                {court.playingPlayers.slice(0, 2).map((p) => (
-                                  <div key={p.id} className="flex items-center gap-1.5">
-                                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0"
-                                      style={{ background: color + "25", color }}>
-                                      {p.name.slice(0, 1).toUpperCase()}
+                                {court.playingPlayers.slice(0, 2).map((p) => {
+                                  const streak = getPlayerStreak(p.id);
+                                  return (
+                                    <div key={p.id} className="flex items-center gap-1.5 min-w-0">
+                                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0"
+                                        style={{ background: color + "25", color }}>
+                                        {p.name.slice(0, 1).toUpperCase()}
+                                      </div>
+                                      <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>{p.name}</span>
+                                      {streak >= 2 && (
+                                        <span
+                                          className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.2 rounded-full flex-shrink-0 animate-flame-flicker"
+                                          style={{ background: "rgba(249,115,22,0.18)", color: "#f97316", border: "1px solid rgba(249,115,22,0.35)" }}
+                                          title={`${streak} match win streak!`}
+                                        >
+                                          <Flame size={9} className="fill-amber-500 text-amber-500" />
+                                          <span>{streak}</span>
+                                        </span>
+                                      )}
                                     </div>
-                                    <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>{p.name}</span>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
-                            {/* VS chip */}
-                            <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                              <div className="w-px h-5 rounded-full" style={{ background: color + "30" }} />
-                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full" style={{ background: color + "15", color }}>
-                                VS
-                              </span>
-                              <div className="w-px h-5 rounded-full" style={{ background: color + "30" }} />
+
+                            {/* Clashing Battle VS Divider */}
+                            <div className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-1 relative">
+                              {/* Top energetic stream line */}
+                              <div className="w-[1.5px] h-5 rounded-full relative overflow-hidden" style={{ background: color + "30" }}>
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-400 to-transparent animate-stream-down" />
+                              </div>
+
+                              {/* Clashing VS Core with Crossed Swords */}
+                              <div className="relative flex items-center justify-center group/clash">
+                                <div
+                                  className="absolute -inset-1 rounded-full blur-[4px] opacity-60 pointer-events-none"
+                                  style={{ background: `radial-gradient(circle, ${color}40 0%, transparent 70%)` }}
+                                />
+                                <div
+                                  className="relative inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full animate-vs-pulse shadow-sm"
+                                  style={{
+                                    background: `linear-gradient(135deg, var(--bg-card) 0%, ${color}20 100%)`,
+                                    color: "var(--text-primary)",
+                                    border: `1.5px solid ${color}50`,
+                                  }}
+                                >
+                                  <Swords size={10} className="animate-swords-clash" style={{ color }} />
+                                  <span>VS</span>
+                                </div>
+                              </div>
+
+                              {/* Bottom energetic stream line */}
+                              <div className="w-[1.5px] h-5 rounded-full relative overflow-hidden" style={{ background: color + "30" }}>
+                                <div className="absolute inset-0 bg-gradient-to-t from-transparent via-cyan-400 to-transparent animate-stream-up" />
+                              </div>
                             </div>
+
                             {/* Team 2 */}
                             <div className="flex-1 min-w-0 text-right">
                               <p className="text-[9px] font-black uppercase tracking-widest mb-1.5" style={{ color: color + "99" }}>Team 2</p>
                               <div className="flex flex-col gap-1 items-end">
-                                {court.playingPlayers.slice(2, 4).map((p) => (
-                                  <div key={p.id} className="flex items-center gap-1.5">
-                                    <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>{p.name}</span>
-                                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0"
-                                      style={{ background: color + "25", color }}>
-                                      {p.name.slice(0, 1).toUpperCase()}
+                                {court.playingPlayers.slice(2, 4).map((p) => {
+                                  const streak = getPlayerStreak(p.id);
+                                  return (
+                                    <div key={p.id} className="flex items-center gap-1.5 min-w-0 justify-end">
+                                      {streak >= 2 && (
+                                        <span
+                                          className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.2 rounded-full flex-shrink-0 animate-flame-flicker"
+                                          style={{ background: "rgba(249,115,22,0.18)", color: "#f97316", border: "1px solid rgba(249,115,22,0.35)" }}
+                                          title={`${streak} match win streak!`}
+                                        >
+                                          <Flame size={9} className="fill-amber-500 text-amber-500" />
+                                          <span>{streak}</span>
+                                        </span>
+                                      )}
+                                      <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>{p.name}</span>
+                                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0"
+                                        style={{ background: color + "25", color }}>
+                                        {p.name.slice(0, 1).toUpperCase()}
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           </div>
                         ) : (
-                          /* Singles: Player vs Player */
+                          /* Singles: Player vs Player with Clashing VS */
                           <div className="flex items-center gap-2 mb-3">
-                            <div className="flex-1 flex items-center gap-1.5 min-w-0">
-                              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0"
-                                style={{ background: color + "25", color }}>
-                                {court.playingPlayers[0]?.name.slice(0, 1).toUpperCase()}
-                              </div>
-                              <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-                                {court.playingPlayers[0]?.name}
-                              </span>
-                            </div>
-                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0"
-                              style={{ background: color + "15", color }}>VS</span>
-                            <div className="flex-1 flex items-center gap-1.5 min-w-0 justify-end">
-                              <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-                                {court.playingPlayers[1]?.name}
-                              </span>
-                              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0"
-                                style={{ background: color + "25", color }}>
-                                {court.playingPlayers[1]?.name.slice(0, 1).toUpperCase()}
-                              </div>
-                            </div>
+                            {(() => {
+                              const p1 = court.playingPlayers[0];
+                              const p2 = court.playingPlayers[1];
+                              const s1 = p1 ? getPlayerStreak(p1.id) : 0;
+                              const s2 = p2 ? getPlayerStreak(p2.id) : 0;
+                              return (
+                                <>
+                                  <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0"
+                                      style={{ background: color + "25", color }}>
+                                      {p1?.name.slice(0, 1).toUpperCase()}
+                                    </div>
+                                    <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+                                      {p1?.name}
+                                    </span>
+                                    {s1 >= 2 && (
+                                      <span
+                                        className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.2 rounded-full flex-shrink-0 animate-flame-flicker"
+                                        style={{ background: "rgba(249,115,22,0.18)", color: "#f97316", border: "1px solid rgba(249,115,22,0.35)" }}
+                                        title={`${s1} match win streak!`}
+                                      >
+                                        <Flame size={9} className="fill-amber-500 text-amber-500" />
+                                        <span>{s1}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="relative inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 animate-vs-pulse shadow-sm"
+                                    style={{
+                                      background: `linear-gradient(135deg, var(--bg-card) 0%, ${color}20 100%)`,
+                                      color: "var(--text-primary)",
+                                      border: `1.5px solid ${color}50`,
+                                    }}
+                                  >
+                                    <Swords size={10} className="animate-swords-clash" style={{ color }} />
+                                    <span>VS</span>
+                                  </div>
+                                  <div className="flex-1 flex items-center gap-1.5 min-w-0 justify-end">
+                                    {s2 >= 2 && (
+                                      <span
+                                        className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.2 rounded-full flex-shrink-0 animate-flame-flicker"
+                                        style={{ background: "rgba(249,115,22,0.18)", color: "#f97316", border: "1px solid rgba(249,115,22,0.35)" }}
+                                        title={`${s2} match win streak!`}
+                                      >
+                                        <Flame size={9} className="fill-amber-500 text-amber-500" />
+                                        <span>{s2}</span>
+                                      </span>
+                                    )}
+                                    <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+                                      {p2?.name}
+                                    </span>
+                                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0"
+                                      style={{ background: color + "25", color }}>
+                                      {p2?.name.slice(0, 1).toUpperCase()}
+                                    </div>
+                                  </div>
+                                </>
+                              );
+                            })()}
                           </div>
                         )}
                         {/* Tap hint */}
@@ -819,6 +932,7 @@ export default function SessionPage() {
                     const color = SKILL_COLORS[entry.skill_level] || "#6b7280";
                     const initials = (entry.player?.name ?? "?").slice(0, 2).toUpperCase();
                     const isNextUp = idx < (gameMode === "doubles" ? 4 : 2);
+                    const streak = getPlayerStreak(entry.player_id);
 
                     return (
                       <div
@@ -842,10 +956,24 @@ export default function SessionPage() {
 
                         {/* Player info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="text-sm font-bold truncate leading-tight" style={{ color: "var(--text-primary)" }}>
                               {entry.player?.name}
                             </p>
+                            {streak >= 2 && (
+                              <span
+                                className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0 animate-flame-flicker"
+                                style={{
+                                  background: "linear-gradient(135deg, rgba(249,115,22,0.2) 0%, rgba(239,68,68,0.2) 100%)",
+                                  color: "#f97316",
+                                  border: "1px solid rgba(249,115,22,0.35)",
+                                }}
+                                title={`${streak} match win streak!`}
+                              >
+                                <Flame size={10} className="fill-amber-500 text-amber-500" />
+                                <span>{streak} streak</span>
+                              </span>
+                            )}
                             {isNextUp && (
                               <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase flex-shrink-0"
                                 style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>

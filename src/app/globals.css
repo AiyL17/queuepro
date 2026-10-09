@@ -449,4 +449,60 @@ input[type="number"] {
   animation: floatSubtle 4s ease-in-out infinite;
 }
 
+/* ─── Battle VS & Flame Streak Animations ────────────────────────────── */
+@keyframes vsClashPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(124, 58, 237, 0.2);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.35), 0 0 24px rgba(124, 58, 237, 0.25);
+  }
+}
+
+@keyframes swordsClash {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25%      { transform: rotate(-14deg) scale(1.15); }
+  35%      { transform: rotate(12deg) scale(1.2); }
+  45%      { transform: rotate(-6deg) scale(1.08); }
+  55%      { transform: rotate(0deg) scale(1); }
+}
+
+@keyframes streamDown {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+@keyframes streamUp {
+  0%   { transform: translateY(100%); }
+  100% { transform: translateY(-100%); }
+}
+
+@keyframes flameFlicker {
+  0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 4px rgba(249,115,22,0.5)); }
+  30%      { transform: scale(1.12) rotate(-4deg); filter: drop-shadow(0 0 8px rgba(239,68,68,0.7)); }
+  70%      { transform: scale(1.06) rotate(4deg); filter: drop-shadow(0 0 6px rgba(245,158,11,0.6)); }
+}
+
+.animate-vs-pulse {
+  animation: vsClashPulse 2.4s ease-in-out infinite;
+}
+
+.animate-swords-clash {
+  animation: swordsClash 3.6s ease-in-out infinite;
+}
+
+.animate-stream-down {
+  animation: streamDown 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-stream-up {
+  animation: streamUp 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-flame-flicker {
+  animation: flameFlicker 1.8s ease-in-out infinite;
+}
+
 
