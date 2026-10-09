@@ -54,6 +54,12 @@ export default function SessionPage() {
   const [newCourtName, setNewCourtName] = useState("");
   const [newCourtSkill, setNewCourtSkill] = useState<SkillLevel>("beginner");
   const [addingCourt, setAddingCourt]   = useState(false);
+  const [courtToDelete, setCourtToDelete] = useState<CourtWithPlayers | null>(null);
+  const [deletingCourt, setDeletingCourt] = useState(false);
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [checkinName, setCheckinName]   = useState("");
+  const [checkinSkill, setCheckinSkill] = useState<SkillLevel>("beginner");
+  const [checkingIn, setCheckingIn]     = useState(false);
   const toast = useToast();
   const scrollY = useScrollPosition();
 
@@ -327,22 +333,65 @@ export default function SessionPage() {
     }
   };
 
-  const handleDeleteCourt = async (courtId: string, courtName: string) => {
+  const promptDeleteCourt = (court: CourtWithPlayers) => {
     if (!isOrganizer) return;
-    const court = courts.find((c) => c.id === courtId);
-    if (court && court.status === "occupied") {
+    if (court.status === "occupied") {
       toast.error("Cannot remove a court while a match is in progress");
       return;
     }
-    if (!confirm(`Are you sure you want to remove ${courtName}?`)) return;
+    setCourtToDelete(court);
+  };
+
+  const handleConfirmDeleteCourt = async () => {
+    if (!courtToDelete || !isOrganizer) return;
+    setDeletingCourt(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("courts").delete().eq("id", courtId);
+      const { error } = await supabase.from("courts").delete().eq("id", courtToDelete.id);
       if (error) throw error;
-      toast.success(`${courtName} removed`);
+      
+      // Optimistically remove court from state
+      setCourts((prev) => prev.filter((c) => c.id !== courtToDelete.id));
+      toast.success(`${courtToDelete.name} removed`);
+      setCourtToDelete(null);
       await fetchData();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to remove court");
+      toast.error(err instanceof Error ? err.message : "Failed to remove court. Check database permissions.");
+    } finally {
+      setDeletingCourt(false);
+    }
+  };
+
+  const handleModalCheckin = async () => {
+    if (!checkinName.trim()) {
+      toast.error("Please enter player's name");
+      return;
+    }
+    setCheckingIn(true);
+    try {
+      const supabase = createClient();
+      const { data: player, error: pe } = await supabase
+        .from("players")
+        .insert({ session_id: sessionId, name: checkinName.trim(), skill_level: checkinSkill, is_guest: true })
+        .select()
+        .single();
+      if (pe) throw pe;
+
+      const { error: qe } = await supabase
+        .from("queue_entries")
+        .insert({ session_id: sessionId, player_id: player.id, skill_level: checkinSkill, status: "waiting" });
+      if (qe) throw qe;
+
+      toast.success(`${checkinName.trim()} joined the queue!`);
+      setCheckinName("");
+      setShowCheckinModal(false);
+
+      await tryFillCourts(sessionId, gameMode);
+      await fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to check in player");
+    } finally {
+      setCheckingIn(false);
     }
   };
 
@@ -590,12 +639,12 @@ export default function SessionPage() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteCourt(court.id, court.name);
+                              promptDeleteCourt(court);
                             }}
                             title={`Remove ${court.name}`}
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--text-faint)] hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--text-faint)] hover:text-red-500 hover:bg-red-500/15 transition-all opacity-70 group-hover:opacity-100 cursor-pointer"
                           >
-                            <X size={12} />
+                            <X size={13} />
                           </button>
                         )}
                       </div>
@@ -831,8 +880,12 @@ export default function SessionPage() {
             {/* Check-in shortcut — organizer only */}
             {isOrganizer && (
             <button
-              onClick={() => router.push(`/session/${sessionId}/checkin`)}
-              className="w-full mt-3 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all hover:opacity-80 hover:scale-[1.01]"
+              onClick={() => {
+                setCheckinName("");
+                setCheckinSkill("beginner");
+                setShowCheckinModal(true);
+              }}
+              className="w-full mt-3 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all hover:opacity-80 hover:scale-[1.01] cursor-pointer"
               style={{ background: "rgba(22,163,74,0.10)", color: "#4ade80", border: "1px solid rgba(22,163,74,0.25)" }}
             >
               + Check in player
@@ -1331,6 +1384,184 @@ export default function SessionPage() {
                 ) : (
                   <>
                     <Plus size={14} /> Add Court
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Court Removal confirmation modal ── */}
+      {courtToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}
+          onClick={(e) => { if (e.target === e.currentTarget && !deletingCourt) setCourtToDelete(null); }}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl p-6 animate-scale-in"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--error-border)", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}
+          >
+            {/* Icon */}
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: "var(--error-bg)" }}
+            >
+              <X size={22} style={{ color: "var(--error-text)" }} />
+            </div>
+
+            {/* Copy */}
+            <h3 className="text-lg font-black text-center tracking-tight mb-1" style={{ color: "var(--text-heading)" }}>
+              Remove {courtToDelete.name}?
+            </h3>
+            <p className="text-sm text-center leading-relaxed mb-6" style={{ color: "var(--text-muted)" }}>
+              This will remove {courtToDelete.name} ({courtToDelete.assigned_skill_level.replace(/_/g, " ")}) from this session.
+            </p>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCourtToDelete(null)}
+                disabled={deletingCourt}
+                className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all hover:opacity-80 disabled:opacity-40 cursor-pointer"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteCourt}
+                disabled={deletingCourt}
+                className="flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                style={{ background: "var(--error-text)", color: "#fff" }}
+              >
+                {deletingCourt ? <><Loader2 size={15} className="animate-spin" /> Removing...</> : "Remove Court"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Inline Player Check-in Modal ── */}
+      {showCheckinModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+          onClick={() => !checkingIn && setShowCheckinModal(false)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4 animate-scale-in"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setShowCheckinModal(false)}
+              disabled={checkingIn}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:opacity-80 cursor-pointer disabled:opacity-40"
+              style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}
+            >
+              <X size={15} />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 pr-8">
+              <div
+                className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}
+              >
+                <UserCheck size={20} style={{ color: "#22c55e" }} />
+              </div>
+              <div>
+                <p className="font-black text-base leading-tight" style={{ color: "var(--text-heading)" }}>
+                  Check In Player
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--text-faint)" }}>
+                  Add player directly to queue & courts
+                </p>
+              </div>
+            </div>
+
+            {/* Player Name Input */}
+            <div>
+              <label className="block text-[10px] font-bold mb-1.5 tracking-widest uppercase" style={{ color: "var(--text-faint)" }}>
+                Player Name
+              </label>
+              <input
+                type="text"
+                value={checkinName}
+                onChange={(e) => setCheckinName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleModalCheckin()}
+                placeholder="e.g. Alex Johnson"
+                className="w-full px-3.5 py-2.5 rounded-2xl text-sm font-bold outline-none transition-all"
+                style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                autoFocus
+              />
+            </div>
+
+            {/* Skill Level Selection */}
+            <div>
+              <label className="block text-[10px] font-bold mb-1.5 tracking-widest uppercase" style={{ color: "var(--text-faint)" }}>
+                Skill Level
+              </label>
+              <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto">
+                {SKILL_LEVELS.map((s) => {
+                  const color = SKILL_COLORS[s.value] || "#6b7280";
+                  const isSelected = checkinSkill === s.value;
+                  return (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setCheckinSkill(s.value)}
+                      className="flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer"
+                      style={{
+                        background: isSelected ? `${color}18` : "var(--bg-subtle)",
+                        border: `1.5px solid ${isSelected ? color : "var(--border)"}`,
+                        color: isSelected ? color : "var(--text-primary)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+                        <span>{s.label}</span>
+                      </div>
+                      {isSelected && <Check size={14} style={{ color }} strokeWidth={3} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowCheckinModal(false)}
+                disabled={checkingIn}
+                className="flex-1 py-2.5 rounded-2xl text-xs font-semibold hover:opacity-80 transition-all cursor-pointer"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleModalCheckin}
+                disabled={checkingIn || !checkinName.trim()}
+                className="flex-1 py-2.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-md"
+                style={{
+                  background: "var(--gradient-green)",
+                  color: "#fff",
+                  boxShadow: "0 4px 14px rgba(34,197,94,0.35)",
+                }}
+              >
+                {checkingIn ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Adding...
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} /> Add to Queue
                   </>
                 )}
               </button>

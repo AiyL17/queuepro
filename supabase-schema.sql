@@ -111,6 +111,8 @@ create policy "Public update courts" on courts for update using (true);
 create policy "Public update queue" on queue_entries for update using (true);
 create policy "Public update scores" on player_session_scores for update using (true);
 create policy "Public update pairs" on pair_scores for update using (true);
+create policy "Public delete courts" on courts for delete using (true);
+create policy "Public delete queue" on queue_entries for delete using (true);
 
 -- Enable Realtime for live updates
 alter publication supabase_realtime add table sessions;
