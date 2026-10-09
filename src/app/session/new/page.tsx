@@ -53,10 +53,11 @@ export default function NewSessionPage() {
       const supabase = createClient();
       const playersPerCourt = gameMode === "singles" ? 2 : 4;
 
-      // 1. Create session
+      // 1. Create session with a random organizer token for ownership verification
+      const organizerToken = crypto.randomUUID();
       const { data: session, error: se } = await supabase
         .from("sessions")
-        .insert({ mode: "guest", game_mode: gameMode, status: "active" })
+        .insert({ mode: "guest", game_mode: gameMode, status: "active", organizer_token: organizerToken })
         .select().single();
       if (se) throw se;
 
@@ -138,6 +139,7 @@ export default function NewSessionPage() {
       }
 
       localStorage.setItem("qp-last-session", session.id);
+      localStorage.setItem(`qp-organizer-${session.id}`, organizerToken);
       router.push(`/session/${session.id}`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to create session");

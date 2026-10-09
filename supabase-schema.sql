@@ -4,6 +4,7 @@ create extension if not exists "uuid-ossp";
 -- ─── Migration: run these if upgrading an existing database ──────────
 -- alter table sessions add column if not exists game_mode text not null default 'doubles' check (game_mode in ('singles','doubles'));
 -- alter table matches  add column if not exists game_mode text not null default 'doubles' check (game_mode in ('singles','doubles'));
+-- alter table sessions add column if not exists organizer_token uuid;
 -- ─────────────────────────────────────────────────────────────────────
 
 -- Sessions table
@@ -12,6 +13,7 @@ create table sessions (
   mode text not null check (mode in ('guest', 'hosted')),
   game_mode text not null default 'doubles' check (game_mode in ('singles', 'doubles')),
   creator_account_id uuid references auth.users(id) on delete set null,
+  organizer_token uuid,
   start_time timestamptz not null default now(),
   end_time timestamptz,
   status text not null default 'active' check (status in ('active', 'ended'))

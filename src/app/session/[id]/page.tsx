@@ -49,6 +49,7 @@ export default function SessionPage() {
   const [ending, setEnding]           = useState(false);
   const [showQr, setShowQr]           = useState(false);
   const [qrCopied, setQrCopied]       = useState(false);
+  const [isOrganizer, setIsOrganizer] = useState(false);
   const toast = useToast();
   const scrollY = useScrollPosition();
 
@@ -76,7 +77,7 @@ export default function SessionPage() {
   const fetchData = useCallback(async () => {
     const supabase = createClient();
     const [{ data: sd }, { data: cd }, { data: qd }] = await Promise.all([
-      supabase.from("sessions").select("game_mode").eq("id", sessionId).single(),
+      supabase.from("sessions").select("game_mode, organizer_token").eq("id", sessionId).single(),
       supabase.from("courts").select("*").eq("session_id", sessionId).order("name"),
       supabase.from("queue_entries")
         .select("*, player:players(*)")
@@ -87,6 +88,12 @@ export default function SessionPage() {
 
     const mode = (sd?.game_mode ?? "doubles") as GameMode;
     setGameMode(mode);
+
+    // Verify organizer ownership via token stored in localStorage at session creation
+    const localToken = typeof window !== "undefined"
+      ? localStorage.getItem(`qp-organizer-${sessionId}`)
+      : null;
+    setIsOrganizer(!!localToken && localToken === sd?.organizer_token);
 
     const allQueue = (qd ?? []) as QueueEntry[];
     const needed = mode === "singles" ? 2 : 4;
@@ -373,6 +380,17 @@ export default function SessionPage() {
       {/* ── Page content ── */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-5">
 
+        {/* ── View-only notice for non-organizers ── */}
+        {!loading && !isOrganizer && (
+          <div
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl mb-4 text-xs font-semibold"
+            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", color: "#f59e0b" }}
+          >
+            <span className="text-base">👁️</span>
+            <span>You are viewing this session as a <strong>player</strong>. Only the organizer can manage the queue, enter scores, or end the session.</span>
+          </div>
+        )}
+
         {/* ── Stats strip ── */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {/* Courts in Play */}
@@ -448,14 +466,14 @@ export default function SessionPage() {
                 return (
                   <div
                     key={court.id}
-                    onClick={() => openScoreModal(court)}
+                    onClick={() => isOrganizer && openScoreModal(court)}
                     className="rounded-3xl p-5 relative overflow-hidden transition-all duration-300 group"
                     style={{
                       background: isOccupied
                         ? `linear-gradient(145deg, var(--bg-card) 0%, ${color}08 100%)`
                         : "var(--bg-card)",
                       border: `1px solid ${isOccupied ? color + "50" : "var(--border)"}`,
-                      cursor: isOccupied ? "pointer" : "default",
+                      cursor: isOccupied && isOrganizer ? "pointer" : "default",
                       boxShadow: isOccupied ? `0 8px 32px ${color}20, 0 0 0 1px ${color}15` : "0 2px 8px rgba(0,0,0,0.04)",
                     }}
                   >
@@ -705,6 +723,7 @@ export default function SessionPage() {
                           </span>
                         </div>
 
+                        {isOrganizer && (
                         <button
                           type="button"
                           onClick={() => removeFromWaitlist(entry.id)}
@@ -714,6 +733,7 @@ export default function SessionPage() {
                         >
                           <X size={12} />
                         </button>
+                        )}
                       </div>
                     );
                   })}
@@ -721,7 +741,8 @@ export default function SessionPage() {
               </div>
             )}
 
-            {/* Check-in shortcut */}
+            {/* Check-in shortcut — organizer only */}
+            {isOrganizer && (
             <button
               onClick={() => router.push(`/session/${sessionId}/checkin`)}
               className="w-full mt-3 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all hover:opacity-80 hover:scale-[1.01]"
@@ -729,8 +750,10 @@ export default function SessionPage() {
             >
               + Check in player
             </button>
+            )}
 
-            {/* End Session button — inside sidebar */}
+            {/* End Session button — organizer only */}
+            {isOrganizer && (
             <button
               onClick={() => setEndConfirm(true)}
               className="w-full mt-2 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
@@ -738,6 +761,7 @@ export default function SessionPage() {
             >
               End Session
             </button>
+            )}
           </div>
         </div>
 
