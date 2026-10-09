@@ -3,18 +3,25 @@
  *
  * Shared post-match logic:
  *  1. Recovery pass: any finished player still stuck in "done" status (e.g. from
- *     a previous partial failure) is restored to "waiting" so they re-enter the queue.
- *  2. Always re-insert finished players as "waiting" at the back of the queue
- *     (with doubles pairing rotation). They go AFTER any existing waiters.
- *  3. Re-fetch the full live waitlist (which now includes the re-queued players).
- *  4. If enough waiting players exist → promote the first N to the freed court.
- *     Queue entries are promoted FIRST; court is marked "occupied" SECOND so
- *     that a mid-flight failure leaves the court "available" rather than
- *     "occupied" with zero playing entries.
- *  5. Otherwise → court stays "available"; the operator or a future submit handles it.
+ *     a previous partial failure) is restored to "waiting" so they re-enter the
+ *     queue. Scoped to the court's skill_level to avoid cross-court contamination.
+ *  2. Calls the Postgres RPC `requeue_after_match` which atomically:
+ *       a. Re-inserts finished players as "waiting" at the back of the queue
+ *          (with a de-dup guard so retries are safe).
+ *       b. Re-fetches the full live waitlist (now including the re-queued players).
+ *       c. If enough waiting players exist → promotes the first N to "playing"
+ *          and marks the court "occupied".
+ *       d. Otherwise → leaves the court "available".
  *
- * This ensures finished players always rotate back into the queue and are never
- * permanently stuck in "done" status.
+ * Running Steps 2a–2d inside a single Postgres transaction (via RPC) prevents
+ * the race condition where two operators submit scores simultaneously and both
+ * read the waitlist before either writes, causing double-promotion.
+ *
+ * For doubles (4 players), pairing rotation (Step A below) is computed client-side
+ * and passed to the RPC as the ordered `p_requeued_ids` array. The RPC inserts
+ * them in that order so the score page's slice(0,2)/slice(2,4) reconstitutes
+ * the correct teams. No shuffle is applied — Step A's rotation is the sole
+ * source of truth for team composition.
  */
 
 import { createClient } from "@/lib/supabase/client";
@@ -22,17 +29,6 @@ import { Court, GameMode, SkillLevel } from "@/lib/types";
 
 interface FinishedPlayer {
   id: string;
-}
-
-/**
- * Fisher-Yates in-place shuffle. Returns the same array (mutated).
- */
-function shuffle<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
 }
 
 /**
@@ -62,29 +58,30 @@ export async function requeueAfterMatch(
   // ── Recovery pass ─────────────────────────────────────────────────────────
   //
   // Detect any finished player still stuck in "done" status from a previous
-  // partial run (i.e. requeueAfterMatch threw after the done-write but before
-  // a waiting entry was inserted). Re-mark them as "waiting" immediately so
-  // the de-dup guard in Step B sees them as already handled and skips the
-  // duplicate insert, and so they appear in the live waitlist in Step C.
+  // partial run (e.g. requeueAfterMatch threw after the done-write but before
+  // the RPC inserted a waiting entry). Re-insert them as "waiting" now so the
+  // RPC's de-dup guard sees them as already handled.
   //
-  // Players that are already "waiting" (from a successful prior re-insert) are
-  // not touched — they remain in the queue with their original joined_at.
+  // Scoped to court.assigned_skill_level (Finding 2) so a player who finished
+  // on a different court at a different skill level is not accidentally
+  // re-inserted into the wrong queue.
 
   const { data: stuckDone, error: stuckErr } = await supabase
     .from("queue_entries")
     .select("id, player_id")
     .eq("session_id", sessionId)
     .eq("status", "done")
+    .eq("skill_level", court.assigned_skill_level)
     .in("player_id", finishedIds);
 
   if (stuckErr) {
     throw new Error(`requeueAfterMatch: failed to check for stuck-done players — ${stuckErr.message}`);
   }
 
-  // Filter to players who have no existing "waiting" entry (true stuck case).
   const stuckIds = (stuckDone ?? []).map((e: { id: string; player_id: string }) => e.player_id);
 
   if (stuckIds.length > 0) {
+    // Only re-insert players who don't already have a waiting entry.
     const { data: alreadyWaitingForRecovery } = await supabase
       .from("queue_entries")
       .select("player_id")
@@ -97,11 +94,10 @@ export async function requeueAfterMatch(
       (alreadyWaitingForRecovery ?? []).map((e: { player_id: string }) => e.player_id)
     );
 
-    // For truly stuck players (done + no waiting entry), insert a fresh waiting entry.
     const trulyStuck = stuckIds.filter((pid: string) => !alreadyWaitingPlayerIds.has(pid));
 
     if (trulyStuck.length > 0) {
-      const recoveryBase = Date.now() - 1000; // Place before any new re-inserts
+      const recoveryBase = Date.now() - 1000; // Place before the new re-inserts
       const { error: recoveryErr } = await supabase.from("queue_entries").insert(
         trulyStuck.map((pid: string, idx: number) => ({
           session_id: sessionId,
@@ -120,16 +116,21 @@ export async function requeueAfterMatch(
 
   // ── Step A: Compute rotated player order ──────────────────────────────────
   //
-  // For doubles (4 players) rotate the pairing so the same two people aren't
+  // For doubles (4 players), rotate the pairing so the same two people aren't
   // always on the same team back-to-back.
   //
-  // The 3 unique pairings for P0..P3 (sorted):
+  // The 3 unique pairings for P0..P3 (sorted by id):
   //   [P0,P1] vs [P2,P3]
   //   [P0,P2] vs [P1,P3]
   //   [P0,P3] vs [P1,P2]
   //
-  // We pick randomly from the 2 remaining pairings (excluding the one just played).
-  // For 3-player doubles or singles: re-insert as-is (shuffle happens at Step D).
+  // We pick randomly from the 2 pairings that weren't just played.
+  // The chosen order ([newTeam1..., newTeam2...]) is passed to the RPC as
+  // p_requeued_ids. The RPC inserts entries in this order (with 1ms offsets),
+  // so when the score page later slices by position it reconstitutes the teams.
+  //
+  // NO shuffle is applied here or in the RPC (Finding 4 — the rotation in
+  // Step A is the sole source of truth for team composition).
 
   let rotatedPlayerIds: string[];
 
@@ -158,113 +159,30 @@ export async function requeueAfterMatch(
     const chosen = available[Math.floor(Math.random() * available.length)];
     rotatedPlayerIds = [...chosen[0], ...chosen[1]];
   } else {
-    // Singles, or 3-player doubles (edge case) — re-insert as-is.
-    // Random team assignment will happen at Step D via the shuffle.
+    // Singles or 3-player edge case — re-insert as-is.
     rotatedPlayerIds = finishedPlayers.map((p) => p.id);
   }
 
-  // ── Step B: Re-insert finished players as "waiting" ───────────────────────
+  // ── Steps B–D: atomic rotation via Postgres RPC ───────────────────────────
   //
-  // Always happens — regardless of how many players are waiting. Finished
-  // players go to the BACK of the queue. Each entry gets a per-index 1 ms
-  // offset so the relative order within this batch is stable even if two
-  // courts finish within the same millisecond.
+  // The RPC runs inside a single transaction, preventing the race condition
+  // where two concurrent score submissions both read the waitlist before either
+  // writes promotions (Finding 1).
   //
-  // De-duplication guard: skip any player who already has a "waiting" entry
-  // at this skill level (protects against partial-failure retries creating
-  // double entries, and correctly scopes to skill_level for multi-court sessions).
+  // p_requeue_base_ms is the current epoch-ms. The RPC adds a per-index 1ms
+  // offset so re-inserted entries sort after any existing waiters and have a
+  // stable relative order within the batch.
 
-  const { data: existingWaiting, error: existingErr } = await supabase
-    .from("queue_entries")
-    .select("player_id")
-    .eq("session_id", sessionId)
-    .eq("status", "waiting")
-    .eq("skill_level", court.assigned_skill_level)  // scoped to this court's level
-    .in("player_id", rotatedPlayerIds);
+  const { error: rpcErr } = await supabase.rpc("requeue_after_match", {
+    p_session_id:      sessionId,
+    p_court_id:        court.id,
+    p_skill_level:     court.assigned_skill_level,
+    p_needed:          needed,
+    p_requeued_ids:    rotatedPlayerIds,
+    p_requeue_base_ms: Date.now(),
+  });
 
-  if (existingErr) {
-    throw new Error(`requeueAfterMatch: failed to check existing waiting entries — ${existingErr.message}`);
+  if (rpcErr) {
+    throw new Error(`requeueAfterMatch: RPC failed — ${rpcErr.message}`);
   }
-
-  const alreadyWaiting = new Set((existingWaiting ?? []).map((e: { player_id: string }) => e.player_id));
-  const toRequeue = rotatedPlayerIds.filter((pid) => !alreadyWaiting.has(pid));
-
-  if (toRequeue.length > 0) {
-    const baseTime = Date.now();
-    const { error: insertErr } = await supabase.from("queue_entries").insert(
-      toRequeue.map((pid, idx) => ({
-        session_id: sessionId,
-        player_id: pid,
-        skill_level: court.assigned_skill_level as SkillLevel,
-        status: "waiting",
-        // Per-index 1 ms offset ensures stable FIFO ordering within the batch
-        // and avoids ties when two courts finish simultaneously.
-        joined_at: new Date(baseTime + idx).toISOString(),
-      }))
-    );
-
-    if (insertErr) {
-      throw new Error(`requeueAfterMatch: failed to re-insert finished players as waiting — ${insertErr.message}`);
-    }
-  }
-
-  // ── Step C: Re-fetch the full live waitlist (includes re-queued players) ──
-
-  const { data: freshWaitlistData, error: waitlistErr } = await supabase
-    .from("queue_entries")
-    .select("id, player_id, skill_level")
-    .eq("session_id", sessionId)
-    .eq("status", "waiting")
-    .eq("skill_level", court.assigned_skill_level)
-    .order("joined_at", { ascending: true });
-
-  if (waitlistErr) {
-    throw new Error(`requeueAfterMatch: failed to fetch fresh waitlist — ${waitlistErr.message}`);
-  }
-
-  const freshWaitlist = freshWaitlistData ?? [];
-
-  // ── Step D: Promote to court if enough players are now waiting ────────────
-  //
-  // Shuffle the candidates randomly before slicing so team composition varies
-  // every rotation rather than always being positional (FIFO order).
-
-  if (freshWaitlist.length >= needed) {
-    // Separate the re-queued (just-finished) players from established waiters.
-    // Shuffle each group independently so existing waiters still tend to go
-    // before re-queued players, but within each group the order is random.
-    const requeued  = freshWaitlist.filter((w) => finishedIds.includes(w.player_id));
-    const others    = freshWaitlist.filter((w) => !finishedIds.includes(w.player_id));
-
-    // Shuffle both groups, then promote from the combined pool.
-    // Others (established waiters) go first; re-queued go after.
-    const candidates = [...shuffle(others), ...shuffle(requeued)];
-    const toPromote  = candidates.slice(0, needed);
-
-    // Promote queue entries FIRST, then mark court occupied.
-    // This ordering ensures a failure between the two writes leaves the court
-    // as "available" (recoverable by operator) rather than "occupied" with
-    // zero playing entries (an unrecoverable phantom state).
-    const { error: promoteErr } = await supabase
-      .from("queue_entries")
-      .update({ status: "playing" })
-      .in("id", toPromote.map((w) => w.id))
-      .eq("session_id", sessionId);
-
-    if (promoteErr) {
-      throw new Error(`requeueAfterMatch: failed to promote waiting players to playing — ${promoteErr.message}`);
-    }
-
-    const { error: courtErr } = await supabase
-      .from("courts")
-      .update({ status: "occupied" })
-      .eq("id", court.id);
-
-    if (courtErr) {
-      throw new Error(`requeueAfterMatch: failed to mark court occupied — ${courtErr.message}`);
-    }
-  }
-
-  // If not enough players yet, court stays "available". The operator uses the
-  // Queue page or the next score submission to kick off the following match.
 }

@@ -121,16 +121,36 @@ export default function SessionPage() {
     try {
       const supabase = createClient();
 
-      // Insert match
-      await supabase.from("matches").insert({
-        session_id: sessionId,
-        court_id: court.id,
-        game_mode: gameMode,
-        team1_player_ids: team1.map((p) => p.id),
-        team2_player_ids: team2.map((p) => p.id),
-        team1_score: s1,
-        team2_score: s2,
+      // Idempotency guard — skip the insert if a match for this court with
+      // exactly these players was already recorded (e.g. a retry after the
+      // insert succeeded but requeueAfterMatch threw). Finding 5.
+      const t1ids = team1.map((p) => p.id).sort().join(",");
+      const t2ids = team2.map((p) => p.id).sort().join(",");
+      const { data: existingMatches } = await supabase
+        .from("matches")
+        .select("id, team1_player_ids, team2_player_ids")
+        .eq("session_id", sessionId)
+        .eq("court_id", court.id)
+        .order("played_at", { ascending: false })
+        .limit(5);
+
+      const alreadyRecorded = (existingMatches ?? []).some((m: { id: string; team1_player_ids: string[]; team2_player_ids: string[] }) => {
+        const mt1 = [...m.team1_player_ids].sort().join(",");
+        const mt2 = [...m.team2_player_ids].sort().join(",");
+        return (mt1 === t1ids && mt2 === t2ids) || (mt1 === t2ids && mt2 === t1ids);
       });
+
+      if (!alreadyRecorded) {
+        await supabase.from("matches").insert({
+          session_id: sessionId,
+          court_id: court.id,
+          game_mode: gameMode,
+          team1_player_ids: team1.map((p) => p.id),
+          team2_player_ids: team2.map((p) => p.id),
+          team1_score: s1,
+          team2_score: s2,
+        });
+      }
 
       // Individual scores
       for (const { id: pid, score } of [
