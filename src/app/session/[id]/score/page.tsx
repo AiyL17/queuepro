@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Court, Player, GameMode } from "@/lib/types";
+import { requeueAfterMatch } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Loader2, Users, User, Trophy, Plus, Minus, Check } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
@@ -139,6 +140,16 @@ export default function ScorePage() {
         .in("player_id", allPlayerIds)
         .eq("session_id", sessionId)
         .eq("status", "playing");
+
+      // Requeue finished players / promote waitlisted players.
+      await requeueAfterMatch(
+        sessionId,
+        gameMode,
+        court,
+        [...team1, ...team2],
+        team1.map((p) => p.id),
+        team2.map((p) => p.id)
+      );
 
       toast.success(`Score saved — ${s1}–${s2}`);
       setTimeout(() => router.push(`/session/${sessionId}`), 1500);

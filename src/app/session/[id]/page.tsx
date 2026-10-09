@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Court, Player, QueueEntry, GameMode, SkillLevel } from "@/lib/types";
+import { Court, Player, QueueEntry, GameMode } from "@/lib/types";
+import { requeueAfterMatch } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
@@ -168,86 +169,18 @@ export default function SessionPage() {
         .in("player_id", allPlayers.map((p) => p.id))
         .eq("session_id", sessionId).eq("status", "playing");
 
-      // Auto-assign next players to this freed court.
-      // Priority 1: players in the waitlist for this skill level.
-      // Priority 2: if no waitlist, re-queue the players who just finished.
-      const needed = gameMode === "singles" ? 2 : 4;
-      const nextWaiting = waitlist
-        .filter((w) => w.skill_level === court.assigned_skill_level)
-        .slice(0, needed);
-
-      if (nextWaiting.length >= needed) {
-        // Enough waitlisted players — assign them
-        await supabase.from("courts").update({ status: "occupied" }).eq("id", court.id);
-        await supabase.from("queue_entries").update({ status: "playing" })
-          .in("player_id", nextWaiting.map((w) => w.player_id))
-          .eq("session_id", sessionId);
-      } else {
-        // No (or not enough) waitlisted players — re-queue the same players
-        // with a RANDOM pairing so teammates change each match.
-        //
-        // For doubles (4 players) there are exactly 3 unique pairings:
-        //   [P0,P1] vs [P2,P3]
-        //   [P0,P2] vs [P1,P3]
-        //   [P0,P3] vs [P1,P2]
-        // We pick one at random but EXCLUDE the pairing that was just played
-        // so the same teammates are guaranteed not to repeat back-to-back.
-        //
-        // Singles: only 1 possible pairing — re-assign as-is.
-
-        let rotatedPlayerIds: string[];
-
-        if (gameMode === "doubles" && allPlayers.length === 4) {
-          // Use sorted IDs as stable references
-          const sorted = allPlayers.map((p) => p.id).sort();
-          const [P0, P1, P2, P3] = sorted;
-
-          // The 3 unique pairings expressed as [team1pair, team2pair]
-          const allPairings: [string[], string[]][] = [
-            [[P0, P1], [P2, P3]],
-            [[P0, P2], [P1, P3]],
-            [[P0, P3], [P1, P2]],
-          ];
-
-          // Identify which pairing was just played by comparing sorted team IDs
-          const lastTeam1 = team1.map((p) => p.id).sort().join(",");
-          const lastTeam2 = team2.map((p) => p.id).sort().join(",");
-
-          const available = allPairings.filter(([t1, t2]) => {
-            const t1key = [...t1].sort().join(",");
-            const t2key = [...t2].sort().join(",");
-            // Exclude if it's the same pairing in either orientation
-            return !(
-              (t1key === lastTeam1 && t2key === lastTeam2) ||
-              (t1key === lastTeam2 && t2key === lastTeam1)
-            );
-          });
-
-          // Pick randomly from the remaining 2 pairings
-          const chosen = available[Math.floor(Math.random() * available.length)];
-          rotatedPlayerIds = [...chosen[0], ...chosen[1]];
-        } else {
-          // Singles — only one possible match-up, re-assign as-is
-          rotatedPlayerIds = allPlayers.map((p) => p.id);
-        }
-
-        // Re-insert queue entries as "waiting" in rotated order
-        await supabase.from("queue_entries").insert(
-          rotatedPlayerIds.map((pid) => ({
-            session_id: sessionId,
-            player_id: pid,
-            skill_level: court.assigned_skill_level as SkillLevel,
-            status: "waiting",
-          }))
-        );
-
-        // Immediately flip them to "playing" and mark court occupied again
-        await supabase.from("courts").update({ status: "occupied" }).eq("id", court.id);
-        await supabase.from("queue_entries").update({ status: "playing" })
-          .in("player_id", rotatedPlayerIds)
-          .eq("session_id", sessionId)
-          .eq("status", "waiting");
-      }
+      // Requeue finished players / promote waitlisted players using shared helper.
+      // This queries the DB live (not stale React state) and either:
+      //   a) promotes the first N waitlisted players to the freed court, OR
+      //   b) re-inserts the finished players as "waiting" at the back of the queue.
+      await requeueAfterMatch(
+        sessionId,
+        gameMode,
+        court,
+        allPlayers,
+        team1.map((p) => p.id),
+        team2.map((p) => p.id)
+      );
 
       closeModal();
       fetchData();
