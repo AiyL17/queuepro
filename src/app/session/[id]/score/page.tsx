@@ -33,8 +33,8 @@ export default function ScorePage() {
   const [gameMode, setGameMode]     = useState<GameMode>("doubles");
   const [team1, setTeam1]           = useState<PlayingPlayer[]>([]);
   const [team2, setTeam2]           = useState<PlayingPlayer[]>([]);
-  const [team1Score, setTeam1Score] = useState("");
-  const [team2Score, setTeam2Score] = useState("");
+  const [team1Score, setTeam1Score] = useState("0");
+  const [team2Score, setTeam2Score] = useState("0");
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
   const toast = useToast();
@@ -79,8 +79,10 @@ export default function ScorePage() {
 
   const handleSubmit = async () => {
     if (!court) { toast.error("No court selected"); return; }
-    const s1 = parseInt(team1Score), s2 = parseInt(team2Score);
+    const s1 = team1Score.trim() === "" ? 0 : parseInt(team1Score, 10);
+    const s2 = team2Score.trim() === "" ? 0 : parseInt(team2Score, 10);
     if (isNaN(s1) || isNaN(s2) || s1 < 0 || s2 < 0) { toast.error("Enter valid scores"); return; }
+    if (s1 === 0 && s2 === 0) { toast.error("Please enter match scores — at least one team must score"); return; }
     if (s1 > 11 || s2 > 11) { toast.error("Max score in pickleball is 11 points"); return; }
 
     const allPlayerIds = [...team1, ...team2].map((p) => p.id);
@@ -319,6 +321,9 @@ export default function ScorePage() {
                       const num = parseInt(val, 10);
                       setTeam1Score(String(Math.min(11, num)));
                     }}
+                    onBlur={() => {
+                      if (team1Score === "") setTeam1Score("0");
+                    }}
                     placeholder="0"
                     className="w-24 text-center text-5xl font-black bg-transparent outline-none"
                     style={{ color: s1num > s2num && s1num > 0 ? "var(--success-text)" : "var(--text-heading)" }}
@@ -409,6 +414,9 @@ export default function ScorePage() {
                       if (!val) { setTeam2Score(""); return; }
                       const num = parseInt(val, 10);
                       setTeam2Score(String(Math.min(11, num)));
+                    }}
+                    onBlur={() => {
+                      if (team2Score === "") setTeam2Score("0");
                     }}
                     placeholder="0"
                     className="w-24 text-center text-5xl font-black bg-transparent outline-none"

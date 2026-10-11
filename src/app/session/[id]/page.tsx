@@ -6,11 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Court, Player, QueueEntry, GameMode, SkillLevel, SKILL_LEVELS, Match } from "@/lib/types";
 import { requeueAfterMatch, tryFillCourts } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame, Power } from "lucide-react";
+import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame, Power, History, ChevronRight } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { useToast } from "@/lib/toast";
 import { useScrollPosition } from "@/hooks/useScroll";
 import { Skeleton, SkeletonCourt } from "@/components/Skeleton";
+import { MatchHistoryModal } from "@/components/MatchHistoryModal";
 
 const SKILL_COLORS: Record<string, string> = {
   beginner:          "#3b82f6",
@@ -43,8 +44,8 @@ export default function SessionPage() {
   const [loading, setLoading]         = useState(true);
   const [copied, setCopied]           = useState(false);
   const [scoreModal, setScoreModal]   = useState<ScoreModal | null>(null);
-  const [team1Score, setTeam1Score]   = useState("");
-  const [team2Score, setTeam2Score]   = useState("");
+  const [team1Score, setTeam1Score]   = useState("0");
+  const [team2Score, setTeam2Score]   = useState("0");
   const [saving, setSaving]           = useState(false);
   const [endConfirm, setEndConfirm]   = useState(false);
   const [ending, setEnding]           = useState(false);
@@ -61,6 +62,8 @@ export default function SessionPage() {
   const [checkinName, setCheckinName]   = useState("");
   const [checkinSkill, setCheckinSkill] = useState<SkillLevel>("beginner");
   const [checkingIn, setCheckingIn]     = useState(false);
+  const [allPlayers, setAllPlayers]     = useState<Player[]>([]);
+  const [showMatchHistory, setShowMatchHistory] = useState(false);
   const toast = useToast();
   const scrollY = useScrollPosition();
 
@@ -75,6 +78,9 @@ export default function SessionPage() {
       toast.success(`🏓 Welcome, ${joinedName}! You're in the queue.`);
       // Clean the query param from the URL without re-navigating
       router.replace(`/session/${sessionId}`, { scroll: false });
+    }
+    if (searchParams.get("history") === "1" || searchParams.get("tab") === "history") {
+      setShowMatchHistory(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -103,7 +109,7 @@ export default function SessionPage() {
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: sd }, { data: cd }, { data: qd }, { data: md }] = await Promise.all([
+    const [{ data: sd }, { data: cd }, { data: qd }, { data: md }, { data: pld }] = await Promise.all([
       supabase.from("sessions").select("game_mode, organizer_token").eq("id", sessionId).single(),
       supabase.from("courts").select("*").eq("session_id", sessionId).order("name"),
       supabase.from("queue_entries")
@@ -115,9 +121,13 @@ export default function SessionPage() {
         .select("*")
         .eq("session_id", sessionId)
         .order("played_at", { ascending: false }),
+      supabase.from("players")
+        .select("*")
+        .eq("session_id", sessionId),
     ]);
 
     setMatches((md as Match[]) || []);
+    setAllPlayers((pld as Player[]) || []);
 
     const mode = (sd?.game_mode ?? "doubles") as GameMode;
     setGameMode(mode);
@@ -175,6 +185,7 @@ export default function SessionPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "courts",        filter: `session_id=eq.${sessionId}` }, fetchData)
       .on("postgres_changes", { event: "*", schema: "public", table: "queue_entries", filter: `session_id=eq.${sessionId}` }, fetchData)
       .on("postgres_changes", { event: "*", schema: "public", table: "matches",       filter: `session_id=eq.${sessionId}` }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "players",       filter: `session_id=eq.${sessionId}` }, fetchData)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [sessionId, fetchData]);
@@ -197,15 +208,17 @@ export default function SessionPage() {
       team1: court.playingPlayers.slice(0, half),
       team2: court.playingPlayers.slice(half, half * 2),
     });
-    setTeam1Score(""); setTeam2Score("");
+    setTeam1Score("0"); setTeam2Score("0");
   };
 
-  const closeModal = () => { setScoreModal(null); setTeam1Score(""); setTeam2Score(""); };
+  const closeModal = () => { setScoreModal(null); setTeam1Score("0"); setTeam2Score("0"); };
 
   const handleSaveScore = async () => {
     if (!scoreModal) return;
-    const s1 = parseInt(team1Score), s2 = parseInt(team2Score);
+    const s1 = team1Score.trim() === "" ? 0 : parseInt(team1Score, 10);
+    const s2 = team2Score.trim() === "" ? 0 : parseInt(team2Score, 10);
     if (isNaN(s1) || isNaN(s2) || s1 < 0 || s2 < 0) { toast.error("Enter valid scores"); return; }
+    if (s1 === 0 && s2 === 0) { toast.error("Please enter match scores — at least one team must score"); return; }
     if (s1 > 11 || s2 > 11) { toast.error("Max score in pickleball is 11 points"); return; }
     vibrate([30, 50, 30]);
     setSaving(true);
@@ -490,6 +503,24 @@ export default function SessionPage() {
         {/* Right cluster */}
         <div className="flex gap-2 items-center flex-shrink-0">
           <button
+            onClick={() => setShowMatchHistory(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
+            style={{ background: "var(--bg-card)", color: "var(--text-primary)", border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+            title="View Match History"
+          >
+            <History size={13} className="text-amber-400" />
+            <span className="hidden sm:inline">Match History</span>
+            <span className="sm:hidden">History</span>
+            {matches.length > 0 && (
+              <span
+                className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-black px-1 rounded-full"
+                style={{ background: "rgba(124,58,237,0.18)", color: "#c084fc" }}
+              >
+                {matches.length}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setShowQr(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
             style={{ background: "var(--bg-card)", color: "var(--text-primary)", border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
@@ -577,6 +608,58 @@ export default function SessionPage() {
             </div>
             <p className="text-2xl font-black leading-none" style={{ color: "#f59e0b" }}>{waitlist.length}</p>
             <p className="text-[10px] font-bold uppercase tracking-widest opacity-70" style={{ color: "#f59e0b" }}>Waiting</p>
+          </div>
+        </div>
+
+        {/* ── Match History Strip ── */}
+        <div
+          onClick={() => setShowMatchHistory(true)}
+          className="rounded-2xl p-3.5 mb-5 flex items-center justify-between cursor-pointer transition-all hover:scale-[1.005] active:scale-[0.995] group shadow-sm"
+          style={{
+            background: "var(--bg-card)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+              style={{
+                background: "linear-gradient(135deg, rgba(124,58,237,0.15), rgba(245,158,11,0.15))",
+                border: "1px solid rgba(124,58,237,0.25)",
+              }}
+            >
+              <History size={16} className="text-amber-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-bold tracking-tight" style={{ color: "var(--text-heading)" }}>
+                  Match History
+                </h3>
+                <span
+                  className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(124,58,237,0.12)", color: "#c084fc" }}
+                >
+                  {matches.length} {matches.length === 1 ? "match" : "matches"}
+                </span>
+              </div>
+              <p className="text-[11px] truncate mt-0.5" style={{ color: "var(--text-muted)" }}>
+                {matches.length === 0
+                  ? "No matches completed yet — click to view history"
+                  : `Last match: ${matches[0].team1_score} - ${matches[0].team2_score} · Click to view players, court & winners`}
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="flex items-center gap-1.5 flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl transition-all group-hover:translate-x-1"
+            style={{
+              background: "var(--bg-subtle)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <span>View History</span>
+            <ChevronRight size={13} className="text-[var(--text-faint)]" />
           </div>
         </div>
 
@@ -1182,6 +1265,9 @@ export default function SessionPage() {
                       const num = parseInt(val, 10);
                       setTeam1Score(String(Math.min(11, num)));
                     }}
+                    onBlur={() => {
+                      if (team1Score === "") setTeam1Score("0");
+                    }}
                     className="w-12 sm:w-14 text-center text-3xl sm:text-4xl font-black bg-transparent outline-none min-w-0"
                     style={{ color: s1num > s2num && s1num > 0 ? "var(--success-text)" : "var(--text-primary)" }}
                     placeholder="0"
@@ -1260,6 +1346,9 @@ export default function SessionPage() {
                       if (!val) { setTeam2Score(""); return; }
                       const num = parseInt(val, 10);
                       setTeam2Score(String(Math.min(11, num)));
+                    }}
+                    onBlur={() => {
+                      if (team2Score === "") setTeam2Score("0");
                     }}
                     className="w-12 sm:w-14 text-center text-3xl sm:text-4xl font-black bg-transparent outline-none min-w-0"
                     style={{ color: s2num > s1num && s2num > 0 ? "var(--success-text)" : "var(--text-primary)" }}
@@ -1717,6 +1806,15 @@ export default function SessionPage() {
           </div>
         </div>
       )}
+
+      {/* ── Match History Modal ── */}
+      <MatchHistoryModal
+        isOpen={showMatchHistory}
+        onClose={() => setShowMatchHistory(false)}
+        matches={matches}
+        players={allPlayers}
+        courts={courts}
+      />
     </main>
   );
 }

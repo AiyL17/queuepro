@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Trophy, Users } from "lucide-react";
+import { LayoutDashboard, Trophy, Users, History } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function SessionLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,7 @@ export default function SessionLayout({ children }: { children: React.ReactNode 
 
   const navItems = [
     { name: "Dashboard", href: `/session/${id}`, icon: LayoutDashboard },
+    { name: "History", href: `/session/${id}/history`, icon: History },
     { name: "Leaderboard", href: `/session/${id}/leaderboard`, icon: Trophy },
     { name: "Check In", href: `/session/${id}/checkin`, icon: Users },
   ];
