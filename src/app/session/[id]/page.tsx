@@ -6,12 +6,15 @@ import { createClient } from "@/lib/supabase/client";
 import { Court, Player, QueueEntry, GameMode, SkillLevel, SKILL_LEVELS, Match } from "@/lib/types";
 import { requeueAfterMatch, tryFillCourts } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame, Power, History, ChevronRight } from "lucide-react";
+import { SoundToggle } from "@/components/SoundToggle";
+import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame, Power, History, ChevronRight, Shuffle } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 import { useToast } from "@/lib/toast";
 import { useScrollPosition } from "@/hooks/useScroll";
 import { Skeleton, SkeletonCourt } from "@/components/Skeleton";
 import { MatchHistoryModal } from "@/components/MatchHistoryModal";
+import { CourtTimer } from "@/components/CourtTimer";
+import { playPaddlePop, playVictoryChime, playClickPing } from "@/lib/sound";
 
 const SKILL_COLORS: Record<string, string> = {
   beginner:          "#3b82f6",
@@ -64,6 +67,8 @@ export default function SessionPage() {
   const [checkingIn, setCheckingIn]     = useState(false);
   const [allPlayers, setAllPlayers]     = useState<Player[]>([]);
   const [showMatchHistory, setShowMatchHistory] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState("");
+  const [shufflingCourtId, setShufflingCourtId] = useState<string | null>(null);
   const toast = useToast();
   const scrollY = useScrollPosition();
 
@@ -110,7 +115,7 @@ export default function SessionPage() {
   const fetchData = useCallback(async () => {
     const supabase = createClient();
     const [{ data: sd }, { data: cd }, { data: qd }, { data: md }, { data: pld }] = await Promise.all([
-      supabase.from("sessions").select("game_mode, organizer_token").eq("id", sessionId).single(),
+      supabase.from("sessions").select("game_mode, organizer_token, start_time").eq("id", sessionId).single(),
       supabase.from("courts").select("*").eq("session_id", sessionId).order("name"),
       supabase.from("queue_entries")
         .select("*, player:players(*)")
@@ -128,6 +133,7 @@ export default function SessionPage() {
 
     setMatches((md as Match[]) || []);
     setAllPlayers((pld as Player[]) || []);
+    if (sd?.start_time) setSessionStartTime(sd.start_time);
 
     const mode = (sd?.game_mode ?? "doubles") as GameMode;
     setGameMode(mode);
@@ -304,6 +310,7 @@ export default function SessionPage() {
       );
 
       closeModal();
+      playVictoryChime();
       fetchData();
     } catch (err: unknown) {
       toast.error(
@@ -330,6 +337,58 @@ export default function SessionPage() {
     } catch {
       setEnding(false);
       setEndConfirm(false);
+      toast.error("Failed to end session");
+    }
+  };
+
+  const handleShuffleCourtTeams = async (court: CourtWithPlayers) => {
+    if (!isOrganizer) return;
+    if (court.playingPlayers.length < (gameMode === "singles" ? 2 : 4)) return;
+    setShufflingCourtId(court.id);
+    vibrate([20, 30]);
+    try {
+      const players = [...court.playingPlayers];
+      let reordered = [...players];
+
+      if (gameMode === "doubles" && players.length === 4) {
+        // Pairs are currently (0,1) and (2,3).
+        // Two alternative fair configurations:
+        // Alt A: (0,2) vs (1,3) -> [0, 2, 1, 3]
+        // Alt B: (0,3) vs (1,2) -> [0, 3, 1, 2]
+        const alts = [
+          [players[0], players[2], players[1], players[3]],
+          [players[0], players[3], players[1], players[2]],
+        ];
+        reordered = alts[Math.floor(Math.random() * alts.length)];
+      } else {
+        // Singles: swap sides
+        reordered = [players[1], players[0]];
+      }
+
+      // Optimistically update court players in UI
+      setCourts((prev) =>
+        prev.map((c) => (c.id === court.id ? { ...c, playingPlayers: reordered } : c))
+      );
+
+      const supabase = createClient();
+      const baseTime = Date.now();
+      await Promise.all(
+        reordered.map((p, idx) =>
+          supabase
+            .from("queue_entries")
+            .update({ joined_at: new Date(baseTime + idx * 1000).toISOString() })
+            .eq("id", p.queueEntryId)
+        )
+      );
+
+      playPaddlePop();
+      toast.success(`🏓 Reshuffled teams on ${court.name}!`);
+      await fetchData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to reshuffle teams");
+      await fetchData();
+    } finally {
+      setShufflingCourtId(null);
     }
   };
 
@@ -419,6 +478,7 @@ export default function SessionPage() {
         .insert({ session_id: sessionId, player_id: player.id, skill_level: checkinSkill, status: "waiting" });
       if (qe) throw qe;
 
+      playPaddlePop();
       toast.success(`${checkinName.trim()} joined the queue!`);
       setCheckinName("");
       setShowCheckinModal(false);
@@ -502,8 +562,14 @@ export default function SessionPage() {
 
         {/* Right cluster */}
         <div className="flex gap-2 items-center flex-shrink-0">
+          <SoundToggle />
+
+          {/* Match History */}
           <button
-            onClick={() => setShowMatchHistory(true)}
+            onClick={() => {
+              playClickPing();
+              setShowMatchHistory(true);
+            }}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
             style={{ background: "var(--bg-card)", color: "var(--text-primary)", border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
             title="View Match History"
@@ -520,6 +586,8 @@ export default function SessionPage() {
               </span>
             )}
           </button>
+
+          {/* QR Code */}
           <button
             onClick={() => setShowQr(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
@@ -529,6 +597,8 @@ export default function SessionPage() {
             <QrCode size={13} />
             <span className="hidden sm:inline">QR Code</span>
           </button>
+
+          {/* Leaderboard */}
           <button
             onClick={() => router.push(`/session/${sessionId}/leaderboard`)}
             className="hidden lg:flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
@@ -537,6 +607,7 @@ export default function SessionPage() {
             <Trophy size={13} className="text-amber-300" />
             <span>Leaderboard</span>
           </button>
+
           <ThemeToggle />
         </div>
       </header>
@@ -636,16 +707,16 @@ export default function SessionPage() {
                   Match History
                 </h3>
                 <span
-                  className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                  className="text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0"
                   style={{ background: "rgba(124,58,237,0.12)", color: "#c084fc" }}
                 >
                   {matches.length} {matches.length === 1 ? "match" : "matches"}
                 </span>
               </div>
-              <p className="text-[11px] truncate mt-0.5" style={{ color: "var(--text-muted)" }}>
+              <p className="text-[11px] truncate mt-0.5 hidden sm:block" style={{ color: "var(--text-muted)" }}>
                 {matches.length === 0
                   ? "No matches completed yet — click to view history"
-                  : `Last match: ${matches[0].team1_score} - ${matches[0].team2_score} · Click to view players, court & winners`}
+                  : `Last: ${matches[0].team1_score} - ${matches[0].team2_score} · Tap to view details`}
               </p>
             </div>
           </div>
@@ -658,7 +729,7 @@ export default function SessionPage() {
               border: "1px solid var(--border)",
             }}
           >
-            <span>View History</span>
+            <span className="hidden sm:inline">View History</span>
             <ChevronRight size={13} className="text-[var(--text-faint)]" />
           </div>
         </div>
@@ -728,6 +799,14 @@ export default function SessionPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
+                        {isOccupied && (
+                          <CourtTimer
+                            courtId={court.id}
+                            courtStatus={court.status}
+                            latestMatchTime={matches.find((m) => m.court_id === court.id)?.played_at}
+                            sessionStartTime={sessionStartTime}
+                          />
+                        )}
                         <span
                           className="inline-flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0"
                           style={{
@@ -922,12 +1001,35 @@ export default function SessionPage() {
                             })()}
                           </div>
                         )}
-                        {/* Tap hint */}
-                        <div
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-2xl text-xs font-bold opacity-0 group-hover:opacity-100 transition-all duration-200"
-                          style={{ background: color + "12", color }}
-                        >
-                          <Trophy size={11} /> Tap to record score
+                        {/* Action buttons on occupied court */}
+                        <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t" style={{ borderColor: color + "20" }}>
+                          {isOrganizer && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleShuffleCourtTeams(court);
+                              }}
+                              disabled={shufflingCourtId === court.id}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50"
+                              style={{
+                                background: "rgba(124,58,237,0.12)",
+                                color: "#a78bfa",
+                                border: "1px solid rgba(124,58,237,0.25)",
+                              }}
+                              title="Shuffle team pairings fairly before match starts"
+                            >
+                              <Shuffle size={11} className={shufflingCourtId === court.id ? "animate-spin text-purple-300" : ""} />
+                              <span>{shufflingCourtId === court.id ? "Shuffling..." : "Shuffle"}</span>
+                            </button>
+                          )}
+                          <div
+                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-[11px] font-bold transition-all duration-200"
+                            style={{ background: color + "12", color }}
+                          >
+                            <Trophy size={11} />
+                            <span>{isOrganizer ? "Tap to record score" : "Match in progress"}</span>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1245,7 +1347,10 @@ export default function SessionPage() {
                 <div className="flex items-center justify-center gap-1 my-1.5">
                   <button
                     type="button"
-                    onClick={() => setTeam1Score(String(Math.max(0, s1num - 1)))}
+                    onClick={() => {
+                      playClickPing();
+                      setTeam1Score(String(Math.max(0, s1num - 1)));
+                    }}
                     disabled={s1num <= 0}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex-shrink-0"
                     style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
@@ -1275,7 +1380,10 @@ export default function SessionPage() {
 
                   <button
                     type="button"
-                    onClick={() => setTeam1Score(String(Math.min(11, s1num + 1)))}
+                    onClick={() => {
+                      playClickPing();
+                      setTeam1Score(String(Math.min(11, s1num + 1)));
+                    }}
                     disabled={s1num >= 11}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex-shrink-0"
                     style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
@@ -1288,7 +1396,10 @@ export default function SessionPage() {
                 <div className="flex items-center justify-center mt-1.5">
                   <button
                     type="button"
-                    onClick={() => setTeam1Score("11")}
+                    onClick={() => {
+                      playClickPing();
+                      setTeam1Score("11");
+                    }}
                     className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all hover:opacity-90 active:scale-95 cursor-pointer"
                     style={{
                       background: s1num === 11 ? "var(--gradient-green)" : "var(--bg-subtle)",
@@ -1327,7 +1438,10 @@ export default function SessionPage() {
                 <div className="flex items-center justify-center gap-1 my-1.5">
                   <button
                     type="button"
-                    onClick={() => setTeam2Score(String(Math.max(0, s2num - 1)))}
+                    onClick={() => {
+                      playClickPing();
+                      setTeam2Score(String(Math.max(0, s2num - 1)));
+                    }}
                     disabled={s2num <= 0}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex-shrink-0"
                     style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
@@ -1357,7 +1471,10 @@ export default function SessionPage() {
 
                   <button
                     type="button"
-                    onClick={() => setTeam2Score(String(Math.min(11, s2num + 1)))}
+                    onClick={() => {
+                      playClickPing();
+                      setTeam2Score(String(Math.min(11, s2num + 1)));
+                    }}
                     disabled={s2num >= 11}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex-shrink-0"
                     style={{ background: "rgba(124,58,237,0.12)", color: "#a78bfa", border: "1px solid rgba(124,58,237,0.25)" }}
@@ -1370,7 +1487,10 @@ export default function SessionPage() {
                 <div className="flex items-center justify-center mt-1.5">
                   <button
                     type="button"
-                    onClick={() => setTeam2Score("11")}
+                    onClick={() => {
+                      playClickPing();
+                      setTeam2Score("11");
+                    }}
                     className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all hover:opacity-90 active:scale-95 cursor-pointer"
                     style={{
                       background: s2num === 11 ? "var(--gradient-green)" : "var(--bg-subtle)",

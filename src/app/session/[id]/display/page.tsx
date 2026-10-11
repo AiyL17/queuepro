@@ -7,6 +7,7 @@ import { SKILL_LEVELS, SkillLevel, QueueEntry, Court, PlayerSessionScore } from 
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BackButton } from "@/components/BackButton";
 import { Target, Trophy, Users } from "lucide-react";
+import { CourtTimer } from "@/components/CourtTimer";
 
 const SKILL_COLORS: Record<SkillLevel, string> = {
   beginner: "#3b82f6",
@@ -22,15 +23,18 @@ export default function DisplayPage() {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
   const [scores, setScores] = useState<PlayerSessionScore[]>([]);
+  const [sessionStartTime, setSessionStartTime] = useState<string>("");
   const [time, setTime] = useState(new Date());
 
   const fetchData = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: qd }, { data: cd }, { data: sd }] = await Promise.all([
+    const [{ data: qd }, { data: cd }, { data: sd }, { data: sessData }] = await Promise.all([
       supabase.from("queue_entries").select("*, player:players(*)").eq("session_id", sessionId).eq("status", "waiting").order("joined_at"),
       supabase.from("courts").select("*").eq("session_id", sessionId).order("name"),
       supabase.from("player_session_scores").select("*, player:players(*)").eq("session_id", sessionId).order("total_score", { ascending: false }),
+      supabase.from("sessions").select("start_time").eq("id", sessionId).single(),
     ]);
+    if (sessData?.start_time) setSessionStartTime(sessData.start_time);
     const seen = new Set<string>();
     const uniqueQueue: QueueEntry[] = [];
     for (const q of (qd as QueueEntry[]) || []) {
@@ -141,14 +145,23 @@ export default function DisplayPage() {
                 >
                   {court.assigned_skill_level.replace(/_/g, " ")}
                 </p>
-                <div
-                  className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold w-full"
-                  style={{
-                    background: isOccupied ? color + "18" : "var(--court-available-bg)",
-                    color: isOccupied ? color : "var(--court-available-text)",
-                  }}
-                >
-                  {isOccupied ? "In Play" : "Available"}
+                <div className="flex items-center justify-between gap-1.5 mt-1">
+                  <div
+                    className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold flex-1"
+                    style={{
+                      background: isOccupied ? color + "18" : "var(--court-available-bg)",
+                      color: isOccupied ? color : "var(--court-available-text)",
+                    }}
+                  >
+                    {isOccupied ? "In Play" : "Available"}
+                  </div>
+                  {isOccupied && (
+                    <CourtTimer
+                      courtId={court.id}
+                      courtStatus={court.status}
+                      sessionStartTime={sessionStartTime}
+                    />
+                  )}
                 </div>
               </div>
             );
