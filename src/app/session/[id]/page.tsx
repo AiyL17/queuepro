@@ -7,8 +7,8 @@ import { Court, Player, QueueEntry, GameMode, SkillLevel, SKILL_LEVELS, Match } 
 import { requeueAfterMatch, tryFillCourts } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SoundToggle } from "@/components/SoundToggle";
-import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame, Power, History, ChevronRight, Shuffle } from "lucide-react";
-import { BackButton } from "@/components/BackButton";
+import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame, Power, History, ChevronRight, Shuffle, Eye } from "lucide-react";
+
 import { useToast } from "@/lib/toast";
 import { useScrollPosition } from "@/hooks/useScroll";
 import { Skeleton, SkeletonCourt } from "@/components/Skeleton";
@@ -80,7 +80,7 @@ export default function SessionPage() {
   useEffect(() => {
     const joinedName = searchParams.get("joined");
     if (joinedName) {
-      toast.success(`🏓 Welcome, ${joinedName}! You're in the queue.`);
+      toast.success(`Welcome, ${joinedName}! You're in the queue.`);
       // Clean the query param from the URL without re-navigating
       router.replace(`/session/${sessionId}`, { scroll: false });
     }
@@ -382,7 +382,7 @@ export default function SessionPage() {
       );
 
       playPaddlePop();
-      toast.success(`🏓 Reshuffled teams on ${court.name}!`);
+      toast.success(`Reshuffled teams on ${court.name}!`);
       await fetchData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to reshuffle teams");
@@ -531,8 +531,6 @@ export default function SessionPage() {
       >
         {/* Left cluster */}
         <div className="flex items-center gap-2 min-w-0">
-          <BackButton href="/" label="Home" />
-          <div className="hidden sm:block w-px h-5 flex-shrink-0" style={{ background: "var(--border)" }} />
           <div className="hidden sm:block min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-black tracking-tight leading-none" style={{ color: "var(--text-heading)" }}>
@@ -621,7 +619,7 @@ export default function SessionPage() {
             className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl mb-4 text-xs font-semibold"
             style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", color: "#f59e0b" }}
           >
-            <span className="text-base">👁️</span>
+            <Eye size={14} className="flex-shrink-0" />
             <span>You are viewing this session as a <strong>player</strong>. Only the organizer can manage the queue, enter scores, or end the session.</span>
           </div>
         )}

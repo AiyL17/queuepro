@@ -5,12 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Zap, Link2, Target, Trophy, Users, ClipboardList, UserCheck, Play, CheckCircle2, XCircle, Sparkles, Shield, Smartphone, Download, ArrowRightCircle, X, QrCode, Copy, ExternalLink, Share2, Check, Lightbulb, ArrowRight } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
-interface ActiveSession { id: string; game_mode: string; status: string; start_time: string; }
 
 export default function Home() {
-  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
   const [activeTier, setActiveTier] = useState<"all" | "beginner" | "intermediate" | "advanced">("all");
   const [showPwaBanner, setShowPwaBanner] = useState(true);
   const [showMobileModal, setShowMobileModal] = useState(false);
@@ -74,28 +71,6 @@ export default function Home() {
     setShowPwaBanner(false);
   };
 
-  useEffect(() => {
-    const id = localStorage.getItem("qp-last-session");
-    if (!id) return;
-    const supabase = createClient();
-    supabase
-      .from("sessions")
-      .select("id, game_mode, status, start_time")
-      .eq("id", id)
-      .single()
-      .then(({ data }) => {
-        if (data && data.status === "active") {
-          setActiveSession(data as ActiveSession);
-        } else {
-          localStorage.removeItem("qp-last-session");
-        }
-      });
-  }, []);
-
-  const dismissSession = () => {
-    localStorage.removeItem("qp-last-session");
-    setActiveSession(null);
-  };
 
   return (
     <main
@@ -259,70 +234,6 @@ export default function Home() {
           <span>Real-time sync</span>
         </div>
 
-        {/* Continue Session card */}
-        {activeSession && (
-          <div
-            className="p-5 text-left w-full max-w-2xl mb-10 rounded-3xl relative overflow-hidden transition-all duration-300 group"
-            style={{
-              background: "linear-gradient(135deg, var(--bg-card) 0%, rgba(34,197,94,0.06) 100%)",
-              border: "1px solid rgba(34,197,94,0.35)",
-              boxShadow: "0 8px 32px rgba(34,197,94,0.14)",
-            }}
-          >
-            <div
-              className="absolute -top-10 -right-10 w-32 h-32 rounded-full pointer-events-none"
-              style={{ background: "radial-gradient(circle, rgba(34,197,94,0.2) 0%, transparent 70%)" }}
-            />
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span
-                    className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full"
-                    style={{
-                      background: "rgba(34,197,94,0.15)",
-                      color: "#4ade80",
-                      border: "1px solid rgba(34,197,94,0.3)",
-                    }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Session Active
-                  </span>
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"
-                    style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}
-                  >
-                    {activeSession.game_mode}
-                  </span>
-                </div>
-                <p className="text-base font-bold mb-0.5 leading-snug" style={{ color: "var(--text-heading)" }}>
-                  {activeSession.game_mode === "doubles" ? "2v2 Doubles Session" : "1v1 Singles Session"}
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Started {new Date(activeSession.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · Ready to resume
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={dismissSession}
-                  className="text-xs font-semibold px-3 py-2 rounded-xl transition-all hover:opacity-80"
-                  style={{ color: "var(--text-faint)", background: "var(--bg-subtle)" }}
-                >
-                  Dismiss
-                </button>
-                <Link
-                  href={`/session/${activeSession.id}`}
-                  className="flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:scale-105 active:scale-95"
-                  style={{
-                    background: "var(--gradient-green)",
-                    boxShadow: "0 4px 16px rgba(34,197,94,0.35)",
-                  }}
-                >
-                  Resume Session →
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Feature cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-4xl">
