@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { SKILL_LEVELS, SkillLevel, PlayerSessionScore, PairScore, Match } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BackButton } from "@/components/BackButton";
+import { HelpButton } from "@/components/HelpButton";
+import { HelpModal } from "@/components/HelpModal";
 import dynamic from "next/dynamic";
 import { useScrollPosition } from "@/hooks/useScroll";
 import { SkeletonLeaderboardRow } from "@/components/Skeleton";
@@ -169,7 +171,9 @@ export default function LeaderboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <DownloadButton scores={scores} pairs={pairs} sessionId={sessionId} />
+          <div data-tour="leaderboard-download-btn">
+            <DownloadButton scores={scores} pairs={pairs} sessionId={sessionId} />
+          </div>
           <ThemeToggle />
         </div>
       </header>
@@ -178,6 +182,7 @@ export default function LeaderboardPage() {
 
       {/* Skill Filter Pills */}
       <div
+        data-tour="leaderboard-filters"
         className="flex items-center gap-2 overflow-x-auto pb-1 mb-5 no-scrollbar"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
       >
@@ -568,6 +573,9 @@ export default function LeaderboardPage() {
 
       </div>{/* end px-4 sm:px-6 pt-4 pb-6 animate-slide-up wrapper */}
 
+      {/* Help & Walkthrough */}
+      <HelpButton pageKey="leaderboard" autoOpen={true} />
+      <HelpModal pageKey="leaderboard" />
     </main>
   );
 }

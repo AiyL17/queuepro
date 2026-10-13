@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { HelpButton } from "@/components/HelpButton";
+import { HelpModal } from "@/components/HelpModal";
 import { Zap, Link2, Target, Trophy, Users, ClipboardList, UserCheck, Play, CheckCircle2, XCircle, Sparkles, Shield, Smartphone, Download, ArrowRightCircle, X, QrCode, Copy, ExternalLink, Share2, Check, Lightbulb, ArrowRight } from "lucide-react";
 
 
@@ -649,7 +651,7 @@ export default function Home() {
       </section>
 
       {/* ── QR / Join Callout ── */}
-      <section className="relative z-10 py-4 px-6 w-full max-w-5xl mx-auto">
+      <section data-tour="home-qr" className="relative z-10 py-4 px-6 w-full max-w-5xl mx-auto">
         <div
           className="rounded-3xl p-8 sm:p-10 relative overflow-hidden flex flex-col sm:flex-row items-center gap-8"
           style={{
@@ -1156,6 +1158,10 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Help & Walkthrough */}
+      <HelpButton pageKey="home" autoOpen={true} />
+      <HelpModal pageKey="home" />
     </main>
   );
 }

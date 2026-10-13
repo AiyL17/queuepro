@@ -7,6 +7,8 @@ import { Court, Player, QueueEntry, GameMode, SkillLevel, SKILL_LEVELS, Match } 
 import { requeueAfterMatch, tryFillCourts } from "@/lib/queue-helpers";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SoundToggle } from "@/components/SoundToggle";
+import { HelpButton } from "@/components/HelpButton";
+import { HelpModal } from "@/components/HelpModal";
 import { Trophy, Users, User, Check, Loader2, Copy, CheckCheck, Plus, Minus, X, Activity, ClipboardList, UserCheck, Swords, Radio, QrCode, ExternalLink, Flame, Power, History, ChevronRight, Shuffle, Eye } from "lucide-react";
 
 import { useToast } from "@/lib/toast";
@@ -564,6 +566,7 @@ export default function SessionPage() {
 
           {/* Match History */}
           <button
+            data-tour="history-header-btn"
             onClick={() => {
               playClickPing();
               setShowMatchHistory(true);
@@ -587,6 +590,7 @@ export default function SessionPage() {
 
           {/* QR Code */}
           <button
+            data-tour="qr-header-btn"
             onClick={() => setShowQr(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
             style={{ background: "var(--bg-card)", color: "var(--text-primary)", border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
@@ -598,6 +602,7 @@ export default function SessionPage() {
 
           {/* Leaderboard */}
           <button
+            data-tour="leaderboard-header-btn"
             onClick={() => router.push(`/session/${sessionId}/leaderboard`)}
             className="hidden lg:flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all hover:opacity-90 hover:scale-105 active:scale-95 cursor-pointer"
             style={{ background: "linear-gradient(135deg, #7c3aed, #9333ea)", color: "#ffffff", boxShadow: "0 4px 14px rgba(124,58,237,0.35)" }}
@@ -736,13 +741,14 @@ export default function SessionPage() {
         <div className="flex flex-col lg:flex-row gap-5">
 
           {/* Courts */}
-          <div className="flex-1 min-w-0">
+          <div data-tour="courts-container" className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-4">
               <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>Courts</h2>
               <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--bg-card)", color: "var(--text-faint)", border: "1px solid var(--border)" }}>{courts.length} total</span>
               {isOrganizer && (
                 <button
+                  data-tour="add-court-action"
                   type="button"
                   onClick={openAddCourtModal}
                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm ml-1"
@@ -1059,7 +1065,7 @@ export default function SessionPage() {
           </div>
 
           {/* Waitlist sidebar */}
-          <div className="w-full lg:w-80 lg:flex-shrink-0 lg:sticky lg:top-20 self-start">
+          <div data-tour="queue-container" className="w-full lg:w-80 lg:flex-shrink-0 lg:sticky lg:top-20 self-start">
             {/* Sidebar header */}
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-xs font-bold uppercase tracking-widest flex-shrink-0" style={{ color: "var(--text-faint)" }}>Queue</h2>
@@ -1068,6 +1074,7 @@ export default function SessionPage() {
               {isOrganizer && (
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
+                    data-tour="checkin-action"
                     type="button"
                     onClick={() => {
                       setCheckinName("");
@@ -1082,6 +1089,7 @@ export default function SessionPage() {
                     <span>Check In</span>
                   </button>
                   <button
+                    data-tour="end-session-action"
                     type="button"
                     onClick={() => setEndConfirm(true)}
                     className="flex items-center gap-1.5 text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
@@ -1254,7 +1262,7 @@ export default function SessionPage() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
               style={{ background: "var(--error-bg)" }}
             >
-              <X size={22} style={{ color: "var(--error-text)" }} />
+              <Power size={22} style={{ color: "var(--error-text)" }} />
             </div>
 
             {/* Copy */}
@@ -1932,6 +1940,15 @@ export default function SessionPage() {
         matches={matches}
         players={allPlayers}
         courts={courts}
+      />
+
+      {/* ── Help & Walkthrough ── */}
+      <HelpButton
+        pageKey={isOrganizer ? "dashboard-organizer" : "dashboard-player"}
+        autoOpen={true}
+      />
+      <HelpModal
+        pageKey={isOrganizer ? "dashboard-organizer" : "dashboard-player"}
       />
     </main>
   );

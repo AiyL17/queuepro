@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { SKILL_LEVELS, SkillLevel, GameMode } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { HelpButton } from "@/components/HelpButton";
+import { HelpModal } from "@/components/HelpModal";
 import {
   ArrowLeft, ArrowRight, Plus, X, Rocket, Loader2,
   UserPlus, User, Users, Check,
@@ -210,7 +212,7 @@ export default function NewSessionPage() {
       {step === 1 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
           {/* Left col: Game Mode */}
-          <div>
+          <div data-tour="game-mode">
             <div className="mb-7">
               <div className="flex items-center gap-2 mb-1.5">
                 <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>Game Mode</h2>
@@ -266,7 +268,7 @@ export default function NewSessionPage() {
           </div>
 
           {/* Right col: Courts */}
-          <div className="flex flex-col min-w-0">
+          <div data-tour="courts-list" className="flex flex-col min-w-0">
             <div className="mb-4 flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1.5">
                 <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>
@@ -341,6 +343,7 @@ export default function NewSessionPage() {
             </div>
 
             <button
+              data-tour="add-court-btn"
               onClick={addCourt}
               className="w-full py-3.5 rounded-2xl text-xs font-bold hover:opacity-80 transition-all active:scale-[0.99] mb-8 flex items-center justify-center gap-2 cursor-pointer"
               style={{ background: "var(--bg-card)", color: "var(--text-primary)", border: "1.5px dashed var(--border-hover)" }}
@@ -352,6 +355,7 @@ export default function NewSessionPage() {
           {/* Full-width CTA */}
           <div className="lg:col-span-2">
             <button
+              data-tour="step1-next-btn"
               onClick={() => setStep(2)}
               className="btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:scale-[1.01] transition-all"
               style={{ background: "var(--gradient-cta)", boxShadow: "0 8px 30px rgba(124,58,237,0.3)" }}
@@ -397,6 +401,7 @@ export default function NewSessionPage() {
               </div>
 
               <div
+                data-tour="add-player-card"
                 className="p-5 rounded-3xl mb-4"
                 style={{ background: "var(--bg-card)", border: "1px solid var(--border)", boxShadow: "0 4px 20px rgba(0,0,0,0.04)" }}
               >
@@ -444,7 +449,7 @@ export default function NewSessionPage() {
             </div>
 
             {/* Right col: Player list */}
-            <div className="min-w-0">
+            <div data-tour="roster-list" className="min-w-0">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>
                   Registered Roster
@@ -523,6 +528,7 @@ export default function NewSessionPage() {
             {/* Full-width CTA */}
             <div className="lg:col-span-2">
               <button
+                data-tour="launch-session-btn"
                 onClick={handleStart}
                 disabled={loading || players.length === 0}
                 className="btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 cursor-pointer transition-all duration-300"
@@ -543,6 +549,10 @@ export default function NewSessionPage() {
         </div>
       )}
       </div>
+
+      {/* Help & Walkthrough */}
+      <HelpButton pageKey={step === 1 ? "new-session-step1" : "new-session-step2"} autoOpen={true} />
+      <HelpModal pageKey={step === 1 ? "new-session-step1" : "new-session-step2"} />
     </main>
   );
 }

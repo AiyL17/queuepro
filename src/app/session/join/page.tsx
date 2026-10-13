@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ArrowRight, Hash, Loader2 } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
+import { HelpButton } from "@/components/HelpButton";
+import { HelpModal } from "@/components/HelpModal";
 import { useToast } from "@/lib/toast";
 
 export default function JoinSessionPage() {
@@ -99,6 +101,7 @@ export default function JoinSessionPage() {
               Session Code / ID
             </label>
             <div
+              data-tour="join-code-input"
               className="flex items-center gap-2.5 px-4 py-3.5 rounded-2xl transition-all"
               style={{
                 background: "var(--bg-subtle)",
@@ -121,6 +124,7 @@ export default function JoinSessionPage() {
 
           {/* CTA */}
           <button
+            data-tour="join-submit-btn"
             onClick={handleJoin}
             disabled={loading || !sessionId.trim()}
             className="btn-primary w-full py-3.5 text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg hover:scale-[1.01] active:scale-[0.99] relative z-10"
@@ -155,6 +159,10 @@ export default function JoinSessionPage() {
           </div>
         </div>
       </div>
+
+      {/* Help & Walkthrough */}
+      <HelpButton pageKey="join" autoOpen={true} />
+      <HelpModal pageKey="join" />
     </main>
   );
 }

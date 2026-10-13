@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { SKILL_LEVELS, SkillLevel } from "@/lib/types";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BackButton } from "@/components/BackButton";
+import { HelpButton } from "@/components/HelpButton";
+import { HelpModal } from "@/components/HelpModal";
 import { Check, Loader2, ArrowRight, User } from "lucide-react";
 import { useToast } from "@/lib/toast";
 import { tryFillCourts } from "@/lib/queue-helpers";
@@ -135,7 +137,7 @@ export default function CheckinPage() {
               </div>
 
               {/* Input field */}
-              <div className="relative z-10">
+              <div data-tour="checkin-name-input" className="relative z-10">
                 <label className="block text-[10px] font-bold mb-2 tracking-widest uppercase"
                   style={{ color: "var(--text-faint)" }}>
                   Your Full Name or Nickname
@@ -159,6 +161,7 @@ export default function CheckinPage() {
               </div>
 
               <button
+                data-tour="checkin-submit-btn"
                 onClick={handleCheckin}
                 disabled={loading || !name.trim()}
                 className="btn-primary w-full py-4 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all relative z-10"
@@ -178,7 +181,7 @@ export default function CheckinPage() {
           </div>
 
           {/* Right: Skill level options */}
-          <div>
+          <div data-tour="checkin-skill-picker">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-faint)" }}>
                 Select Skill Level
@@ -239,6 +242,10 @@ export default function CheckinPage() {
 
         </div>
       </div>
+
+      {/* Help & Walkthrough */}
+      <HelpButton pageKey="checkin" autoOpen={true} />
+      <HelpModal pageKey="checkin" />
     </main>
   );
 }

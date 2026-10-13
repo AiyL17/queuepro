@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/lib/toast";
+import { HelpProvider } from "@/hooks/useHelp";
 
 export const metadata: Metadata = {
   title: "QueuePro - Pickleball Queue System",
@@ -27,9 +28,11 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen" style={{ background: "var(--bg-page)", color: "var(--text-primary)" }}>
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <HelpProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </HelpProvider>
       </body>
     </html>
   );
